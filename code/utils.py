@@ -27,15 +27,17 @@ def make_dir_if_needed(dir_path):
 
 
 def download_case(case_name, case_data, case_path):
-    print("\t{}".format(case_path))
-    make_dir_if_needed(case_path)
-    for file_name, file_link in case_data.items():
-        file_path = os.path.join(case_path, file_name)
-        if os.path.isfile(file_path):
-            print("\t\t{}: CHECK".format(file_path))
-        else:
-            print("\t\t{}: DOWNLOADING...".format(file_path))
-            dload.save(file_link, file_path)
+    for video_sample_number, video_sample_data in case_data.items():
+        sample_path = os.path.join(case_path, video_sample_number)
+        print("\t{}".format(sample_path))
+        make_dir_if_needed(sample_path)
+        for file_name, file_link in video_sample_data.items():
+            file_path = os.path.join(sample_path, file_name)
+            if os.path.isfile(file_path):
+                print("\t\t{}: CHECK".format(file_path))
+            else:
+                print("\t\t{}: DOWNLOADING...".format(file_path))
+                dload.save(file_link, file_path)
 
 
 def download_folder(config_data):

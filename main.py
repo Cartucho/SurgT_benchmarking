@@ -1,6 +1,6 @@
 import argparse
 from code.utils import load_yaml_data, download_data
-from code.method import run_method
+from code.evaluate import evaluate_method
 
 
 def main():
@@ -11,7 +11,7 @@ def main():
     # Download data (if not downloaded before)
     download_data(config)
     # Run method
-    #run_method(config)
+    evaluate_method(config)
 
 
 if __name__ == "__main__":

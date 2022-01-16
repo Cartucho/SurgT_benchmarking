@@ -26,13 +26,27 @@ def make_dir_if_needed(dir_path):
         os.makedirs(dir_path)
 
 
-def download_case(case_name, case_data, case_path):
-    for video_sample_number, video_sample_data in case_data.items():
-        sample_path = os.path.join(case_path, video_sample_number)
-        print("\t{}".format(sample_path))
-        make_dir_if_needed(sample_path)
-        for file_name, file_link in video_sample_data.items():
-            file_path = os.path.join(sample_path, file_name)
+def get_case_paths_and_links(config_data):
+    path = os.path.join(config_data["dir"], config_data["subdir"])
+    case_paths = []
+    case_links = []
+    # Go through each of the cases
+    for case_name, case_data in config_data["cases"].items():
+        path_case = os.path.join(path, case_name)
+        # Go through each of the samples of each case
+        for sample_number, sample_links in case_data.items():
+            path_case_sample = os.path.join(path_case, sample_number)
+            case_paths.append(path_case_sample)
+            case_links.append(sample_links)
+    return case_paths, case_links
+
+
+def download_case(case_paths, case_links):
+    for case_sample_path, case_sample_links in zip(case_paths, case_links):
+        print("\t{}".format(case_sample_path))
+        make_dir_if_needed(case_sample_path)
+        for file_name, file_link in case_sample_links.items():
+            file_path = os.path.join(case_sample_path, file_name)
             if os.path.isfile(file_path):
                 print("\t\t{}: CHECK".format(file_path))
             else:
@@ -42,11 +56,9 @@ def download_case(case_name, case_data, case_path):
 
 def download_folder(config_data):
     if config_data["is_to_download"]:
-        path = os.path.join(config_data["dir"], config_data["subdir"])
-        print("Checking download data in: {}".format(path))
-        for case_name, case_data in config_data["cases"].items():
-            case_path = os.path.join(path, case_name)
-            download_case(case_name, case_data, case_path)
+        print("Checking if `{}` data is downloaded".format(config_data["subdir"]))
+        case_paths, case_links = get_case_paths_and_links(config_data)
+        download_case(case_paths, case_links)
 
 
 def download_data(config):

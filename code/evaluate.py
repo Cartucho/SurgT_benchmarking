@@ -6,31 +6,10 @@ import cv2 as cv
 import numpy as np
 
 
-"""
-class BBox:
-    def __init__(self, left, right, top, bottom):
-        self.l = left
-        self.r = right
-        self.width = right - left
-        self.centre_u = ((left + right) / 2.)
-        self.t = top
-        self.b = bottom
-        self.height = bottom - top
-        self.centre_v = ((top + bottom) / 2.)
-
-
-    def get_bbox(self):
-        return (self.l, self.t, self.width, self.height)
-
-
-    def get_centre(self):
-        return self.centre_u, self.centre_v
-"""
-
-
 class Video:
     def __init__(self, case_sample_path, is_to_rectify):
         # Load video info
+        self.case_sample_path = case_sample_path
         video_info_path = os.path.join(case_sample_path, "info.yaml")
         video_info = utils.load_yaml_data(video_info_path)
         #print(video_info)
@@ -47,10 +26,47 @@ class Video:
             self.get_rectification_maps()
         # Load video
         name_video = video_info["name_video"]
-        video_path = os.path.join(case_sample_path, name_video)
-        #print(video_path)
-        self.cap = cv.VideoCapture(video_path)
-        self.frame_init = self.get_frame()
+        self.video_path = os.path.join(case_sample_path, name_video)
+        #print(self.video_path)
+        self.video_restart()
+        # Load ground-truth
+        self.gt_files = video_info["name_ground_truth"]
+        self.n_keypoints = len(self.gt_files)
+
+
+    def video_restart(self):
+        self.cap = cv.VideoCapture(self.video_path)
+        self.bbox_counter = 0
+
+
+    def load_ground_truth(self, ind_kpt):
+        gt_data_path = os.path.join(self.case_sample_path, self.gt_files[ind_kpt])
+        self.gt_data = utils.load_yaml_data(gt_data_path)
+
+
+    def get_bbox_gt(self):
+        """
+            Return two bboxes in format (u, v, width, height)
+
+                                 (u,)   (u + width,)
+                          (0,0)---.--------.---->
+                            |
+                       (,v) -     x--------.
+                            |     |  bbox  |
+              (,v + height) -     .________.
+                            v
+
+            Note: we assume that the gt coordinates are already set for the
+                  rectified images, otherwise we would have to re-map these coordinates.
+        """
+        bbox_1 = None
+        bbox_2 = None
+        bbxs = self.gt_data[self.bbox_counter]
+        if bbxs is not None:
+            bbox_1 = bbxs[0]
+            bbox_2 = bbxs[1]
+        self.bbox_counter += 1
+        return bbox_1, bbox_2
 
 
     def load_calib_data(self):
@@ -123,6 +139,10 @@ class Video:
         return None
 
 
+    def stop_video(self):
+        self.cap.release()
+
+
 def draw_bb_in_frame(im1, im2, bbox1_gt, bbox2_gt, bbox1_p, bbox2_p, thck):
     color_gt = (0, 255, 0) # Green
     color_p  = (255, 0, 0) # Blue
@@ -151,28 +171,70 @@ def draw_bb_in_frame(im1, im2, bbox1_gt, bbox2_gt, bbox1_p, bbox2_p, thck):
 def calculate_results_for_video(case_sample_path, is_to_rectify, valid_or_test):
     # Create window for results visualization
     cv.namedWindow(valid_or_test, cv.WINDOW_KEEPRATIO)
-    thickness = 2
+    thick = 2
     # Load video
     v = Video(case_sample_path, is_to_rectify)
-    if v.frame_init is not None:
-        # Start Tracker
-        im1, im2 = v.split_frame(v.frame_init)
-        bbox1_gt = (200, 200, 100, 100)# TODO: remove
-        bbox2_gt = (200, 200, 100, 100)# TODO: remove
-        t = Tracker(im1, im2, bbox1_gt, bbox2_gt)
-        # Loop through video / Go through each keypoint/bounding-box of a video
+    #""" # TODO: remove until here
+    # Version 1 - Stop tracker when there is no ground-truth (for example due to occlusion)
+    """
+    t = None
+    for ind_kpt in range(v.n_keypoints): # Iterate through all the keypoints
+        # Load ground-truth for the specific keypoint being tested
+        v.load_ground_truth(ind_kpt)
         while v.cap.isOpened():
+            # Get data of new frame
             frame = v.get_frame()
-            bbox1_gt = (200, 200, 100, 100)# TODO: remove
-            bbox2_gt = (200, 200, 100, 100)# TODO: remove
-            # When images are updated the tracker returns two updated bounding-boxes
-            if frame is not None:
-                im1, im2 = v.split_frame(frame)
+            if frame is None:
+                break
+            im1, im2 = v.split_frame(frame)
+            bbox1_gt, bbox2_gt = v.get_bbox_gt()
+            bbox1_p, bbox2_p = None, None # For the visual animation
+            # If is no bounding-boxes info then stop the tracker
+            if bbox1_gt is None or bbox2_gt is None:
+                t = None
+            else:
+                # Otherwise use the bounding-boxes info to re-start or update the tracker
+                if t is None:
+                    t = Tracker(im1, im2, bbox1_gt, bbox2_gt) # restart the tracker
+                else:
+                    bbox1_p, bbox2_p = t.tracker_update(im1, im2)
+                    # Show animation of the tracker
+            frame_aug = draw_bb_in_frame(im1, im2, bbox1_gt, bbox2_gt, bbox1_p, bbox2_p, thick)
+            cv.imshow(valid_or_test, frame_aug)
+            cv.waitKey(10)
+        # Re-start video for assessing the next keypoint
+        v.video_restart()
+    # Stop video after assessing all the keypoints of that specific video
+    v.stop_video()
+    """
+    # Version 2 - Let the tracker go and re-start if it fails to come back to the original place
+    t = None
+    has_tracking_failed = False
+    for ind_kpt in range(v.n_keypoints): # Iterate through all the keypoints
+        # Load ground-truth for the specific keypoint being tested
+        v.load_ground_truth(ind_kpt)
+        while v.cap.isOpened():
+            # Get data of new frame
+            frame = v.get_frame()
+            if frame is None:
+                break
+            im1, im2 = v.split_frame(frame)
+            bbox1_gt, bbox2_gt = v.get_bbox_gt()
+            bbox1_p, bbox2_p = None, None # For the visual animation
+            # Otherwise use the bounding-boxes info to re-start or update the tracker
+            if t is None or has_tracking_failed:
+                if bbox1_gt is not None and bbox2_gt is not None:
+                    t = Tracker(im1, im2, bbox1_gt, bbox2_gt) # restart the tracker
+            else:
                 bbox1_p, bbox2_p = t.tracker_update(im1, im2)
-                frame_augmented = draw_bb_in_frame(im1, im2, bbox1_gt, bbox2_gt, bbox1_p, bbox2_p, thickness)
-                cv.imshow(valid_or_test, frame_augmented)
-                cv.waitKey(10)
-                # TODO Alistair: Compare predicted vs. ground-truth bounding-boxes
+                # Show animation of the tracker
+            frame_aug = draw_bb_in_frame(im1, im2, bbox1_gt, bbox2_gt, bbox1_p, bbox2_p, thick)
+            cv.imshow(valid_or_test, frame_aug)
+            cv.waitKey(10)
+        # Re-start video for assessing the next keypoint
+        v.video_restart()
+    # Stop video after assessing all the keypoints of that specific video
+    v.stop_video()
 
 
 def calculate_results(config, valid_or_test):

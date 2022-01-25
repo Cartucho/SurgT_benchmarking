@@ -11,6 +11,17 @@ class Tracker:
 
 
     def tracker_update(self, new_im1, new_im2):
+        """
+            Return two bboxes in format (u, v, width, height)
+
+                                 (u,)   (u + width,)
+                          (0,0)---.--------.---->
+                            |
+                       (,v) -     x--------.
+                            |     |  bbox  |
+              (,v + height) -     .________.
+                            v
+        """
         success1, bbox1 = self.t1.update(new_im1)
         if not success1:
             bbox1 = None

@@ -56,7 +56,7 @@ def download_case(case_paths, case_links):
 
 def download_folder(config_data):
     if config_data["is_to_download"]:
-        print("Checking if `{}` data is downloaded".format(config_data["subdir"]))
+        print("DOWNLOAD: Checking `{}` data:".format(config_data["subdir"]))
         case_paths, case_links = get_case_paths_and_links(config_data)
         download_case(case_paths, case_links)
 

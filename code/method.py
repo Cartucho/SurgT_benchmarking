@@ -23,9 +23,22 @@ class Tracker:
                             v
         """
         success1, bbox1 = self.t1.update(new_im1)
+        success2, bbox2 = self.t2.update(new_im2)
         if not success1:
             bbox1 = None
-        success2, bbox2 = self.t2.update(new_im2)
         if not success2:
             bbox2 = None
+        """
+            In the ground-truth data, the 2D region of interest (inside the bboxes)
+             is always visible in both the left and right image. If in any of
+             the two images the tracking update fails, for example due to an
+             occlusion in one of the images, then the tracker will be stopped.
+             In other words, if `bbox1 == None` or `bbox2 == None`, the tracker stops.
+             After the end of the occlusion, the evaluation code will automatically
+             re-initialize the code (__init__()), and tracker_update will be called again.
+
+            The other case where the tracker is re-initialized is if the evaluation
+              code detects that the tracker is failing (bbox far away from the ground-truth one)
+              for more than N successive frames.  
+        """
         return bbox1, bbox2

@@ -149,18 +149,105 @@ class Results:
         self.dir = config["dir"]
         self.n_misses_allowed = config["n_misses_allowed"]
         self.iou_threshold = config["iou_threshold"]
+        self.accuracy_list = []
+        self.precision_list = []
+        self.robustness_frames_counter = 0
+        self.excessive_frames_counter = 0
+        self.n_visible = 0
 
 
-    def get_accuracy(self):
-        pass
+    def set_n_misses_to_zero(self):
+        self.n_misses = 0
 
 
-    def get_precision_centroid(self):
-        pass
+    def assess_bbox_accuracy(self, bbox1_gt, bbox1_p, bbox2_gt, bbox2_p):
+        """
+        Check if stereo tracking is a success or not
+        """
+        if bbox1_gt is None or bbox2_gt is None:
+            if bbox1_p is not None or bbox2_p is not None:
+                self.excessive_frames_counter += 1
+            return False
 
+        self.n_visible += 1
 
-    def get_robustness(self):
-        pass
+        if bbox1_p is None or bbox2_p is None:
+            self.n_misses += 1
+            if self.n_misses > self.n_misses_allowed:
+                return True
+            return False
+
+        left_accuracy = self.get_accuracy_frame(bbox1_gt, bbox1_p)
+        right_accuracy = self.get_accuracy_frame(bbox2_gt, bbox2_p)
+
+        self.accuracy_list.append([left_accuracy, right_accuracy])
+        print(self.accuracy_list)
+
+        if left_accuracy > self.iou_threshold and right_accuracy > self.iou_threshold:
+            self.robustness_frames_counter += 1
+            left_precision = self.get_precision_centroid_frame(bbox1_gt, bbox1_p)
+            right_precision = self.get_precision_centroid_frame(bbox2_gt, bbox2_p)
+            self.precision_list.append([left_precision, right_precision])
+        else:
+            self.n_misses += 1
+            if self.n_misses > self.n_misses_allowed:
+                return True
+
+        return False
+    """
+    def get_accuracy_frame_wrong(self, bbox_gt, bbox_p):
+        gt_coords = [bbox_gt[0], bbox_gt[1], bbox_gt[0]+bbox_gt[2], bbox_gt[1]+bbox_gt[3]]
+        p_coords = [bbox_p[0], bbox_p[1], bbox_p[0]+bbox_p[2], bbox_p[1]+bbox_p[3]]
+        xa = max(gt_coords[0], p_coords[0])
+        ya = max(gt_coords[1], p_coords[1])
+        xb = min(gt_coords[2], p_coords[2])
+        yb = min(gt_coords[3], p_coords[3])
+        inter_area = (xb - xa) * (yb - ya)
+        gt_area = (gt_coords[2] - gt_coords[0]) * (gt_coords[3] - gt_coords[1])
+        p_area = (p_coords[2] - p_coords[0]) * (p_coords[3] - p_coords[1])
+        print(gt_coords)
+        print(p_coords)
+
+        iou = inter_area / float(gt_area + p_area - inter_area)
+        return iou
+    """
+
+    def get_accuracy_frame(self, bbox_gt, bbox_p):
+        x1, y1, x2, y2 = [bbox_gt[0], bbox_gt[1], bbox_gt[0]+bbox_gt[2], bbox_gt[1]+bbox_gt[3]]
+        x3, y3, x4, y4 = [bbox_p[0], bbox_p[1], bbox_p[0]+bbox_p[2], bbox_p[1]+bbox_p[3]]
+        x_inter1 = max(x1, x3)
+        y_inter1 = max(y1, y3)
+        x_inter2 = min(x2, x4)
+        y_inter2 = min(y2, y4)
+        widthinter = abs(x_inter2 - x_inter1)
+        heightinter = abs(y_inter2 - y_inter1)
+        areainter = widthinter * heightinter
+        widthboxl = abs(x2 - x1)
+        heightboxl = abs(y2 - y1)
+        widthbox2 = abs(x4 - x3)
+        heightbox2 = abs(y4 - y3)
+        areaboxl = widthboxl * heightboxl
+        areabox2 = widthbox2 * heightbox2
+        areaunion = areaboxl + areabox2 - areainter
+        iou = areainter / float(areaunion)
+        return iou
+
+    def get_precision_centroid_frame(self, bbox_gt, bbox_p):
+        cp_gt = np.array([bbox_gt[0]+bbox_gt[2]/2., bbox_gt[1]+bbox_gt[3]/2.])
+        cp_p = np.array([bbox_p[0]+bbox_p[2]/2., bbox_p[1]+bbox_p[3]/2.])
+        diag_gt = np.sqrt(np.sum(bbox_gt[2]**2+bbox_gt[3]**2))/2 # /2 because maximum overlap len
+        diag_p = np.sqrt(np.sum(bbox_p[2]**2+bbox_p[3]**2))/2
+        cp_distance = 1 - np.sqrt(np.sum(np.abs(cp_gt-cp_p)**2))/(diag_gt+diag_p)
+        return cp_distance
+
+    def get_full_metric(self):
+        """
+        Only happens after all frames are processed, end of video for loop!
+        """
+        #acc =
+        #prec =
+        rob = self.robustness_frames_counter / (self.n_visible + self.excessive_frames_counter)
+        return None, None, rob # acc, prec, rob
 
 
 
@@ -191,7 +278,7 @@ def draw_bb_in_frame(im1, im2, bbox1_gt, bbox2_gt, bbox1_p, bbox2_p, thck):
     return im_hstack
 
 
-def assess_keypoint(v):
+def assess_keypoint(v, r):
     # Create window for results animation
     window_name = "Assessment animation" # TODO: hardcoded
     thick = 2 # TODO: hardcoded
@@ -200,8 +287,7 @@ def assess_keypoint(v):
 
     # Variables for the assessment
     t = None
-    has_tracking_failed = False
-    max_n_misses = 5 # TODO: hardcoded
+    reset_flag = False
     # Use video to access a specific key point
     while v.cap.isOpened():
         # Get data of new frame
@@ -211,17 +297,21 @@ def assess_keypoint(v):
         im1, im2 = v.split_frame(frame)
         bbox1_gt, bbox2_gt = v.get_bbox_gt()
 
-        if t is None or has_tracking_failed:
+        if t is None or reset_flag:
             # Initialise or re-initialize the tracker
             if bbox1_gt is not None and bbox2_gt is not None:
                 t = Tracker(im1, im2, bbox1_gt, bbox2_gt)
+                r.set_n_misses_to_zero()
         else:
             # Update the tracker
             bbox1_p, bbox2_p = t.tracker_update(im1, im2)
-            if bbox1_p is None or bbox2_p is None:
+            # Checks if accuracy is > t for both left and right
+            reset_flag = r.assess_bbox_accuracy(bbox1_gt, bbox1_p, bbox2_gt, bbox2_p)
+            if reset_flag:
                 # If the tracker failed then we need to set it to None so that we re-initialize
                 t = None
-                bbox1_p, bbox2_p = None, None # Make sure that they are both set to None
+                bbox1_p, bbox2_p = None, None # For drawing the animation
+                reset_flag = False
 
         # Show animation of the tracker
         frame_aug = draw_bb_in_frame(im1, im2, bbox1_gt, bbox2_gt, bbox1_p, bbox2_p, thick)
@@ -229,7 +319,7 @@ def assess_keypoint(v):
         cv.waitKey(10)
 
 
-def calculate_results_for_video(case_sample_path, is_to_rectify):
+def calculate_results_for_video(case_sample_path, is_to_rectify, config_results):
     # Load video
     v = Video(case_sample_path, is_to_rectify)
 
@@ -237,8 +327,13 @@ def calculate_results_for_video(case_sample_path, is_to_rectify):
     for ind_kpt in range(v.n_keypoints):
         # Load ground-truth for the specific keypoint being tested
         v.load_ground_truth(ind_kpt)
-        n_predictions = 0
-        assess_keypoint(v)
+        r = Results(config_results)
+        assess_keypoint(v, r)
+        ##################### TODO
+        # get full metric
+        # print lengths of the metrics
+        acc, prec, rob = r.get_full_metric()
+        print("Accuracy:{} Precision:{} Roustness:{}".format(acc, prec, rob))
         # Re-start video for assessing the next keypoint
         v.video_restart()
 
@@ -247,16 +342,20 @@ def calculate_results_for_video(case_sample_path, is_to_rectify):
 
 
 def calculate_results(config, valid_or_test):
-    r = Results(config["results"])
     is_to_rectify = config["is_to_rectify"]
     config_data = config[valid_or_test]
     if config_data["is_to_evaluate"]:
+        config_results = config["results"]
         case_paths, _ = utils.get_case_paths_and_links(config_data)
         # Go through each video
         for case_sample_path in case_paths:
-            calculate_results_for_video(case_sample_path, is_to_rectify)
+            calculate_results_for_video(case_sample_path, is_to_rectify, config_results)
 
 
 def evaluate_method(config):
+    ##################### TODO
+    # GET THE MEANS OF THE VALIDATION AND THE TEST
+    # SHOW FINAL SCORE
     calculate_results(config, "validation")
+
     calculate_results(config, "test")

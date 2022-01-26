@@ -143,6 +143,27 @@ class Video:
         self.cap.release()
 
 
+class Results:
+    def __init__(self, config):
+        print(config)
+        self.dir = config["dir"]
+        self.n_misses_allowed = config["n_misses_allowed"]
+        self.iou_threshold = config["iou_threshold"]
+
+
+    def get_accuracy(self):
+        pass
+
+
+    def get_precision_centroid(self):
+        pass
+
+
+    def get_robustness(self):
+        pass
+
+
+
 def get_bbox_corners(bbox):
     top_left = (bbox[0], bbox[1])
     bot_right = (bbox[0] + bbox[2], bbox[1] + bbox[3])
@@ -172,14 +193,15 @@ def draw_bb_in_frame(im1, im2, bbox1_gt, bbox2_gt, bbox1_p, bbox2_p, thck):
 
 def assess_keypoint(v):
     # Create window for results animation
-    window_name = "Assessment animation"
-    thick = 2
+    window_name = "Assessment animation" # TODO: hardcoded
+    thick = 2 # TODO: hardcoded
     bbox1_p, bbox2_p = None, None # For the visual animation
     cv.namedWindow(window_name, cv.WINDOW_KEEPRATIO)
 
     # Variables for the assessment
     t = None
     has_tracking_failed = False
+    max_n_misses = 5 # TODO: hardcoded
     # Use video to access a specific key point
     while v.cap.isOpened():
         # Get data of new frame
@@ -192,11 +214,12 @@ def assess_keypoint(v):
         if t is None or has_tracking_failed:
             # Initialise or re-initialize the tracker
             if bbox1_gt is not None and bbox2_gt is not None:
-                t = Tracker(im1, im2, bbox1_gt, bbox2_gt) # restart the tracker
+                t = Tracker(im1, im2, bbox1_gt, bbox2_gt)
         else:
             # Update the tracker
             bbox1_p, bbox2_p = t.tracker_update(im1, im2)
             if bbox1_p is None or bbox2_p is None:
+                # If the tracker failed then we need to set it to None so that we re-initialize
                 t = None
                 bbox1_p, bbox2_p = None, None # Make sure that they are both set to None
 
@@ -224,6 +247,7 @@ def calculate_results_for_video(case_sample_path, is_to_rectify):
 
 
 def calculate_results(config, valid_or_test):
+    r = Results(config["results"])
     is_to_rectify = config["is_to_rectify"]
     config_data = config[valid_or_test]
     if config_data["is_to_evaluate"]:

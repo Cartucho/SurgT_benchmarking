@@ -143,96 +143,82 @@ class Video:
         self.cap.release()
 
 
+def get_bbox_corners(bbox):
+    top_left = (bbox[0], bbox[1])
+    bot_right = (bbox[0] + bbox[2], bbox[1] + bbox[3])
+    return top_left, bot_right
+
+
 def draw_bb_in_frame(im1, im2, bbox1_gt, bbox2_gt, bbox1_p, bbox2_p, thck):
     color_gt = (0, 255, 0) # Green
     color_p  = (255, 0, 0) # Blue
     # Image left
     if bbox1_gt is not None:
-        pt_top_left = (bbox1_gt[0], bbox1_gt[1])
-        pt_bot_right = (bbox1_gt[0] + bbox1_gt[2], bbox1_gt[1] + bbox1_gt[3])
-        im1 = cv.rectangle(im1, pt_top_left, pt_bot_right, color_gt, thck)
+        top_left, bot_right = get_bbox_corners(bbox1_gt)
+        im1 = cv.rectangle(im1, top_left, bot_right, color_gt, thck)
     if bbox1_p is not None:
-        pt_top_left = (bbox1_p[0], bbox1_p[1])
-        pt_bot_right = (bbox1_p[0] + bbox1_p[2], bbox1_p[1] + bbox1_p[3])
-        im1 = cv.rectangle(im1, pt_top_left, pt_bot_right, color_p, thck)
+        top_left, bot_right = get_bbox_corners(bbox1_p)
+        im1 = cv.rectangle(im1, top_left, bot_right, color_p, thck)
     # Image right
     if bbox2_gt is not None:
-        pt_top_left = (bbox2_gt[0], bbox2_gt[1])
-        pt_bot_right = (bbox2_gt[0] + bbox2_gt[2], bbox2_gt[1] + bbox2_gt[3])
-        im2 = cv.rectangle(im2, pt_top_left, pt_bot_right, color_gt, thck)
+        top_left, bot_right = get_bbox_corners(bbox2_gt)
+        im2 = cv.rectangle(im2, top_left, bot_right, color_gt, thck)
     if bbox2_p is not None:
-        pt_top_left = (bbox2_p[0], bbox2_p[1])
-        pt_bot_right = (bbox2_p[0] + bbox2_p[2], bbox2_p[1] + bbox2_p[3])
-        im2 = cv.rectangle(im2, pt_top_left, pt_bot_right, color_p, thck)
+        top_left, bot_right = get_bbox_corners(bbox2_p)
+        im2 = cv.rectangle(im2, top_left, bot_right, color_p, thck)
     im_hstack = np.hstack((im1, im2))
     return im_hstack
 
 
-def calculate_results_for_video(case_sample_path, is_to_rectify, valid_or_test):
-    # Create window for results visualization
-    cv.namedWindow(valid_or_test, cv.WINDOW_KEEPRATIO)
+def assess_keypoint(v):
+    # Create window for results animation
+    window_name = "Assessment animation"
     thick = 2
-    # Load video
-    v = Video(case_sample_path, is_to_rectify)
-    #""" # TODO: remove until here
-    # Version 1 - Stop tracker when there is no ground-truth (for example due to occlusion)
-    """
-    t = None
-    for ind_kpt in range(v.n_keypoints): # Iterate through all the keypoints
-        # Load ground-truth for the specific keypoint being tested
-        v.load_ground_truth(ind_kpt)
-        while v.cap.isOpened():
-            # Get data of new frame
-            frame = v.get_frame()
-            if frame is None:
-                break
-            im1, im2 = v.split_frame(frame)
-            bbox1_gt, bbox2_gt = v.get_bbox_gt()
-            bbox1_p, bbox2_p = None, None # For the visual animation
-            # If is no bounding-boxes info then stop the tracker
-            if bbox1_gt is None or bbox2_gt is None:
-                t = None
-            else:
-                # Otherwise use the bounding-boxes info to re-start or update the tracker
-                if t is None:
-                    t = Tracker(im1, im2, bbox1_gt, bbox2_gt) # restart the tracker
-                else:
-                    bbox1_p, bbox2_p = t.tracker_update(im1, im2)
-                    # Show animation of the tracker
-            frame_aug = draw_bb_in_frame(im1, im2, bbox1_gt, bbox2_gt, bbox1_p, bbox2_p, thick)
-            cv.imshow(valid_or_test, frame_aug)
-            cv.waitKey(10)
-        # Re-start video for assessing the next keypoint
-        v.video_restart()
-    # Stop video after assessing all the keypoints of that specific video
-    v.stop_video()
-    """
-    # Version 2 - Let the tracker go and re-start if it fails to come back to the original place
+    bbox1_p, bbox2_p = None, None # For the visual animation
+    cv.namedWindow(window_name, cv.WINDOW_KEEPRATIO)
+
+    # Variables for the assessment
     t = None
     has_tracking_failed = False
-    for ind_kpt in range(v.n_keypoints): # Iterate through all the keypoints
+    # Use video to access a specific key point
+    while v.cap.isOpened():
+        # Get data of new frame
+        frame = v.get_frame()
+        if frame is None:
+            break
+        im1, im2 = v.split_frame(frame)
+        bbox1_gt, bbox2_gt = v.get_bbox_gt()
+
+        if t is None or has_tracking_failed:
+            # Initialise or re-initialize the tracker
+            if bbox1_gt is not None and bbox2_gt is not None:
+                t = Tracker(im1, im2, bbox1_gt, bbox2_gt) # restart the tracker
+        else:
+            # Update the tracker
+            bbox1_p, bbox2_p = t.tracker_update(im1, im2)
+            if bbox1_p is None or bbox2_p is None:
+                t = None
+                bbox1_p, bbox2_p = None, None # Make sure that they are both set to None
+
+        # Show animation of the tracker
+        frame_aug = draw_bb_in_frame(im1, im2, bbox1_gt, bbox2_gt, bbox1_p, bbox2_p, thick)
+        cv.imshow(window_name, frame_aug)
+        cv.waitKey(10)
+
+
+def calculate_results_for_video(case_sample_path, is_to_rectify):
+    # Load video
+    v = Video(case_sample_path, is_to_rectify)
+
+    # Iterate through all the keypoints
+    for ind_kpt in range(v.n_keypoints):
         # Load ground-truth for the specific keypoint being tested
         v.load_ground_truth(ind_kpt)
-        while v.cap.isOpened():
-            # Get data of new frame
-            frame = v.get_frame()
-            if frame is None:
-                break
-            im1, im2 = v.split_frame(frame)
-            bbox1_gt, bbox2_gt = v.get_bbox_gt()
-            bbox1_p, bbox2_p = None, None # For the visual animation
-            # Otherwise use the bounding-boxes info to re-start or update the tracker
-            if t is None or has_tracking_failed:
-                if bbox1_gt is not None and bbox2_gt is not None:
-                    t = Tracker(im1, im2, bbox1_gt, bbox2_gt) # restart the tracker
-            else:
-                bbox1_p, bbox2_p = t.tracker_update(im1, im2)
-                # Show animation of the tracker
-            frame_aug = draw_bb_in_frame(im1, im2, bbox1_gt, bbox2_gt, bbox1_p, bbox2_p, thick)
-            cv.imshow(valid_or_test, frame_aug)
-            cv.waitKey(10)
+        n_predictions = 0
+        assess_keypoint(v)
         # Re-start video for assessing the next keypoint
         v.video_restart()
+
     # Stop video after assessing all the keypoints of that specific video
     v.stop_video()
 
@@ -244,7 +230,7 @@ def calculate_results(config, valid_or_test):
         case_paths, _ = utils.get_case_paths_and_links(config_data)
         # Go through each video
         for case_sample_path in case_paths:
-            calculate_results_for_video(case_sample_path, is_to_rectify, valid_or_test)
+            calculate_results_for_video(case_sample_path, is_to_rectify)
 
 
 def evaluate_method(config):

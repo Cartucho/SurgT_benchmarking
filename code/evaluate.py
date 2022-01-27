@@ -188,6 +188,7 @@ class Results:
             left_precision = self.get_precision_centroid_frame(bbox1_gt, bbox1_p)
             right_precision = self.get_precision_centroid_frame(bbox2_gt, bbox2_p)
             self.precision_list.append([left_precision, right_precision])
+            self.n_misses = 0
         else:
             self.n_misses += 1
             if self.n_misses > self.n_misses_allowed:

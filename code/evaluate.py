@@ -201,8 +201,8 @@ class Results:
         y_inter1 = max(y1, y3)
         x_inter2 = min(x2, x4)
         y_inter2 = min(y2, y4)
-        widthinter = abs(x_inter2 - x_inter1)
-        heightinter = abs(y_inter2 - y_inter1)
+        widthinter = np.maximum(0,x_inter2 - x_inter1)
+        heightinter = np.maximum(0,y_inter2 - y_inter1)
         areainter = widthinter * heightinter
         widthboxl = abs(x2 - x1)
         heightboxl = abs(y2 - y1)

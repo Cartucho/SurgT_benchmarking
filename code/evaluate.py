@@ -5,9 +5,6 @@ from code.method import Tracker
 import cv2 as cv
 import numpy as np
 
-ACCURACY_FRAME = self.get_accuracy_frame(bbox2_gt, bbox2_p)
-
-
 class Video:
     def __init__(self, case_sample_path, is_to_rectify):
         # Load video info
@@ -146,15 +143,16 @@ class Video:
 
 class EAORank:
     def __init__(self, config):
-        self.N_high = config["ss_high"]
-        self.N_low = config["ss_low"]
+        self.N_high = config["results"]["N_high"]
+        self.N_low = config["results"]["N_low"]
         self.padded_list = []
 
     def append_padded_vector(self, padded_vec):
         self.padded_list.append(padded_vec)
 
     def calculate_eao_score(self):
-        for i in range(max(len(l) for l in self.padded_list)):
+        return np.mean(self.padded_list)
+        #for i in range(max(len(l) for l in self.padded_list)):
 
 
 class Results:
@@ -177,16 +175,18 @@ class Results:
         Check if stereo tracking is a success or not
         """
 
-        left_accuracy = self.get_accuracy_frame(bbox1_gt, bbox1_p)
-        right_accuracy = self.get_accuracy_frame(bbox2_gt, bbox2_p)
 
         if bbox1_gt is None or bbox2_gt is None:
             # collect in here
             if bbox1_p is not None or bbox2_p is not None:
                 # If the tracker made a prediction when the target is not visible
                 self.excessive_frames_counter += 1
-            return False, np.mean([left_accuracy, right_accuracy])
+            return False, 0.
+
         self.n_visible += 1
+
+        left_accuracy = self.get_accuracy_frame(bbox1_gt, bbox1_p)
+        right_accuracy = self.get_accuracy_frame(bbox2_gt, bbox2_p)
 
         if bbox1_p is not None and bbox2_p is not None:
 
@@ -326,8 +326,8 @@ def assess_keypoint(rank, v, r):
             # Initialise or re-initialize the tracker
             if bbox1_gt is not None and bbox2_gt is not None:
                 t = Tracker(im1, im2, bbox1_gt, bbox2_gt)
-                sub_sequence_current.append(current_accuracy)
-                accumulate_current_sequence = []
+                sub_sequence_current.append(accumulate_ss_accuracy)
+                accumulate_ss_accuracy = []
         else:
             # Update the tracker
             bbox1_p, bbox2_p = t.tracker_update(im1, im2)
@@ -347,7 +347,7 @@ def assess_keypoint(rank, v, r):
 
         frame_counter += 1
 
-    sub_sequence_current.append(current_accuracy)
+    sub_sequence_current.append(accumulate_ss_accuracy)
 
     if len(sub_sequence_current) > 0:
         end_sub_sequence = sub_sequence_counter + 1
@@ -388,7 +388,7 @@ def calculate_results_for_video(rank,case_sample_path, is_to_rectify, config_res
 
 
 def calculate_results(config, valid_or_test):
-    rank = EAORank()
+    rank = EAORank(config)
     is_to_rectify = config["is_to_rectify"]
     config_data = config[valid_or_test]
     if config_data["is_to_evaluate"]:

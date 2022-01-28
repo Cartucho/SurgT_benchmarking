@@ -189,7 +189,7 @@ class Results:
         self.n_misses_successive += 1
         if self.n_misses_successive > self.n_misses_allowed:
             # Keep only the accuracies before tracking failure
-            del accuracy_list[-self.n_misses_successive:]
+            del self.accuracy_list[-self.n_misses_successive:]
             self.reset_n_successive_misses()
             return True
 

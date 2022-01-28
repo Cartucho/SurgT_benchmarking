@@ -147,13 +147,27 @@ class EAORank:
         self.N_high = config["results"]["N_high"]
         self.N_low = config["results"]["N_low"]
         self.padded_list = []
+        self.largest_vec = 0
+
 
     def append_padded_vector(self, padded_vec):
         self.padded_list.append(padded_vec)
+        if len(padded_vec) > self.largest_vec:
+            self.largest_vec = len(padded_vec)
+
+
+    def calculate_eao_curve(self):
+        self.phi = []
+        print(self.padded_list)
+        exit()
+        #for i in range(self.largest_vec):
+        #    Compute phi for each i 
+
 
     def calculate_eao_score(self):
         return np.mean(self.padded_list)
-        #for i in range(max(len(l) for l in self.padded_list)):
+        self.calculate_eao_curve()
+        
 
 
 class Results:
@@ -168,15 +182,15 @@ class Results:
         self.n_visible = 0
         self.n_misses_successive = 0
 
+
     def reset_n_successive_misses(self):
         self.n_misses_successive = 0
+
 
     def assess_bbox_accuracy(self, bbox1_gt, bbox1_p, bbox2_gt, bbox2_p):
         """
         Check if stereo tracking is a success or not
         """
-
-
         if bbox1_gt is None or bbox2_gt is None:
             # collect in here
             if bbox1_p is not None or bbox2_p is not None:
@@ -186,23 +200,21 @@ class Results:
 
         self.n_visible += 1
 
-        left_accuracy = self.get_accuracy_frame(bbox1_gt, bbox1_p)
-        right_accuracy = self.get_accuracy_frame(bbox2_gt, bbox2_p)
-
+        left_accuracy = 0.0
+        right_accuracy = 0.0
         if bbox1_p is not None and bbox2_p is not None:
+            left_accuracy = self.get_accuracy_frame(bbox1_gt, bbox1_p)
+            right_accuracy = self.get_accuracy_frame(bbox2_gt, bbox2_p)
 
-            self.accuracy_list.append([left_accuracy, right_accuracy])
+        self.accuracy_list.append([left_accuracy, right_accuracy])
 
-            if left_accuracy > self.iou_threshold and right_accuracy > self.iou_threshold:
-                self.robustness_frames_counter += 1
-                left_precision = self.get_precision_centroid_frame(bbox1_gt, bbox1_p)
-                right_precision = self.get_precision_centroid_frame(bbox2_gt, bbox2_p)
-                self.precision_list.append([left_precision, right_precision])
-                self.reset_n_successive_misses()
-                return False, np.mean([left_accuracy, right_accuracy])
-        else:
-            # Tracker failed to predict
-            self.accuracy_list.append([0.0, 0.0])
+        if left_accuracy > self.iou_threshold and right_accuracy > self.iou_threshold:
+            self.robustness_frames_counter += 1
+            left_precision = self.get_precision_centroid_frame(bbox1_gt, bbox1_p)
+            right_precision = self.get_precision_centroid_frame(bbox2_gt, bbox2_p)
+            self.precision_list.append([left_precision, right_precision])
+            self.reset_n_successive_misses()
+            return False, np.mean([left_accuracy, right_accuracy])
 
         self.n_misses_successive += 1
         if self.n_misses_successive > self.n_misses_allowed:
@@ -210,6 +222,7 @@ class Results:
             del self.accuracy_list[-self.n_misses_successive:]
             self.reset_n_successive_misses()
             return True, np.mean([left_accuracy, right_accuracy])
+        return False, np.mean([left_accuracy, right_accuracy])
 
 
     def get_accuracy_frame(self, bbox_gt, bbox_p):
@@ -352,13 +365,11 @@ def assess_keypoint(rank, v, r):
     sub_sequence_current.append(accumulate_ss_accuracy)
 
     if len(sub_sequence_current) > 0:
-        end_sub_sequence = sub_sequence_counter + 1
         bias = 0
         for ss in sub_sequence_current:
             pad_req = end_sub_sequence - start_sub_sequence - len(ss) - bias
             rank.append_padded_vector(ss + [0.] * pad_req)
             bias += len(ss)
-        rank.global_tracking_list(padded_list)
 
 
 def calculate_results_for_video(rank,case_sample_path, is_to_rectify, config_results):
@@ -401,14 +412,16 @@ def calculate_results(config, valid_or_test):
         dataset_acc = []
         dataset_prec = []
         dataset_rob = []
-
+        counter = 0 # TODO: remove
         for case_sample_path in case_paths:
-            acc, prec, rob = calculate_results_for_video(rank,case_sample_path, is_to_rectify, config_results)
-            print("{} Acc:{} Prec:{} Rob:{}".format(case_sample_path, acc, prec, rob))
+            if counter == 11:# TODO: remove
+                acc, prec, rob = calculate_results_for_video(rank,case_sample_path, is_to_rectify, config_results)
+                print("{} Acc:{} Prec:{} Rob:{}".format(case_sample_path, acc, prec, rob))
 
-            dataset_acc.append(acc)
-            dataset_prec.append(prec)
-            dataset_rob.append(rob)
+                dataset_acc.append(acc)
+                dataset_prec.append(prec)
+                dataset_rob.append(rob)
+            counter += 1 # TODO: remove
 
     eao = rank.calculate_eao_score()
 

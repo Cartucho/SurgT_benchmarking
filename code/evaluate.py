@@ -165,8 +165,8 @@ class EAORank:
 
 
     def calculate_eao_score(self):
-        return np.mean(self.padded_list)
         self.calculate_eao_curve()
+        return None # TODO
         
 
 
@@ -340,8 +340,6 @@ def assess_keypoint(rank, v, r):
             # Initialise or re-initialize the tracker
             if bbox1_gt is not None and bbox2_gt is not None:
                 t = Tracker(im1, im2, bbox1_gt, bbox2_gt)
-                sub_sequence_current.append(accumulate_ss_accuracy)
-                accumulate_ss_accuracy = []
         else:
             # Update the tracker
             bbox1_p, bbox2_p = t.tracker_update(im1, im2)
@@ -354,6 +352,8 @@ def assess_keypoint(rank, v, r):
                 t = None
                 bbox1_p, bbox2_p = None, None # For drawing the animation
                 reset_flag = False
+                sub_sequence_current.append(accumulate_ss_accuracy)
+                accumulate_ss_accuracy = []
 
         # Show animation of the tracker
         frame_aug = draw_bb_in_frame(im1, im2, bbox1_gt, bbox2_gt, bbox1_p, bbox2_p, thick)

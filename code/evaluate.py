@@ -154,7 +154,7 @@ class Results:
         self.robustness_frames_counter = 0
         self.excessive_frames_counter = 0
         self.n_visible = 0
-
+        self.n_misses = 0
 
     def set_n_misses_to_zero(self):
         self.n_misses = 0
@@ -181,7 +181,6 @@ class Results:
         right_accuracy = self.get_accuracy_frame(bbox2_gt, bbox2_p)
 
         self.accuracy_list.append([left_accuracy, right_accuracy])
-        print(self.accuracy_list)
 
         if left_accuracy > self.iou_threshold and right_accuracy > self.iou_threshold:
             self.robustness_frames_counter += 1
@@ -195,23 +194,6 @@ class Results:
                 return True
 
         return False
-    """
-    def get_accuracy_frame_wrong(self, bbox_gt, bbox_p):
-        gt_coords = [bbox_gt[0], bbox_gt[1], bbox_gt[0]+bbox_gt[2], bbox_gt[1]+bbox_gt[3]]
-        p_coords = [bbox_p[0], bbox_p[1], bbox_p[0]+bbox_p[2], bbox_p[1]+bbox_p[3]]
-        xa = max(gt_coords[0], p_coords[0])
-        ya = max(gt_coords[1], p_coords[1])
-        xb = min(gt_coords[2], p_coords[2])
-        yb = min(gt_coords[3], p_coords[3])
-        inter_area = (xb - xa) * (yb - ya)
-        gt_area = (gt_coords[2] - gt_coords[0]) * (gt_coords[3] - gt_coords[1])
-        p_area = (p_coords[2] - p_coords[0]) * (p_coords[3] - p_coords[1])
-        print(gt_coords)
-        print(p_coords)
-
-        iou = inter_area / float(gt_area + p_area - inter_area)
-        return iou
-    """
 
     def get_accuracy_frame(self, bbox_gt, bbox_p):
         x1, y1, x2, y2 = [bbox_gt[0], bbox_gt[1], bbox_gt[0]+bbox_gt[2], bbox_gt[1]+bbox_gt[3]]
@@ -245,10 +227,11 @@ class Results:
         """
         Only happens after all frames are processed, end of video for loop!
         """
-        #acc =
-        #prec =
+        # HOW SHOULD WE SEPARATE LEFT AND RIGHT
+        acc = np.mean([np.sum(np.array(self.accuracy_list)[:, 0]) / self.n_visible, np.sum(np.array(self.accuracy_list)[:, 1]) / self.n_visible])
+        prec = np.mean([np.sum(np.array(self.precision_list)[:, 0]) / self.n_visible, np.sum(np.array(self.precision_list)[:, 1]) / self.n_visible])
         rob = self.robustness_frames_counter / (self.n_visible + self.excessive_frames_counter)
-        return None, None, rob # acc, prec, rob
+        return acc, prec, rob # acc, prec, rob
 
 
 
@@ -259,8 +242,8 @@ def get_bbox_corners(bbox):
 
 
 def draw_bb_in_frame(im1, im2, bbox1_gt, bbox2_gt, bbox1_p, bbox2_p, thck):
-    color_gt = (0, 255, 0) # Green
-    color_p  = (255, 0, 0) # Blue
+    color_gt = (0, 255, 0)  # Green
+    color_p = (255, 0, 0)  # Blue
     # Image left
     if bbox1_gt is not None:
         top_left, bot_right = get_bbox_corners(bbox1_gt)
@@ -281,8 +264,8 @@ def draw_bb_in_frame(im1, im2, bbox1_gt, bbox2_gt, bbox1_p, bbox2_p, thck):
 
 def assess_keypoint(v, r):
     # Create window for results animation
-    window_name = "Assessment animation" # TODO: hardcoded
-    thick = 2 # TODO: hardcoded
+    window_name = "Assessment animation"  # TODO: hardcoded
+    thick = 2  # TODO: hardcoded
     bbox1_p, bbox2_p = None, None # For the visual animation
     cv.namedWindow(window_name, cv.WINDOW_KEEPRATIO)
 
@@ -319,10 +302,14 @@ def assess_keypoint(v, r):
         cv.imshow(window_name, frame_aug)
         cv.waitKey(10)
 
-
 def calculate_results_for_video(case_sample_path, is_to_rectify, config_results):
     # Load video
     v = Video(case_sample_path, is_to_rectify)
+
+    # for when there are multiple keypoints
+    keypoints_acc = []
+    keypoints_prec = []
+    keypoints_rob = []
 
     # Iterate through all the keypoints
     for ind_kpt in range(v.n_keypoints):
@@ -330,16 +317,17 @@ def calculate_results_for_video(case_sample_path, is_to_rectify, config_results)
         v.load_ground_truth(ind_kpt)
         r = Results(config_results)
         assess_keypoint(v, r)
-        ##################### TODO
-        # get full metric
-        # print lengths of the metrics
         acc, prec, rob = r.get_full_metric()
-        print("Accuracy:{} Precision:{} Roustness:{}".format(acc, prec, rob))
+        keypoints_acc.append(acc)
+        keypoints_prec.append(prec)
+        keypoints_rob.append(rob)
         # Re-start video for assessing the next keypoint
         v.video_restart()
 
     # Stop video after assessing all the keypoints of that specific video
     v.stop_video()
+
+    return np.mean(keypoints_acc), np.mean(keypoints_prec), np.mean(keypoints_rob)
 
 
 def calculate_results(config, valid_or_test):
@@ -349,14 +337,26 @@ def calculate_results(config, valid_or_test):
         config_results = config["results"]
         case_paths, _ = utils.get_case_paths_and_links(config_data)
         # Go through each video
+
+        dataset_acc = []
+        dataset_prec = []
+        dataset_rob = []
+
         for case_sample_path in case_paths:
-            calculate_results_for_video(case_sample_path, is_to_rectify, config_results)
+            acc, prec, rob = calculate_results_for_video(case_sample_path, is_to_rectify, config_results)
+
+            dataset_acc.append(acc)
+            dataset_prec.append(prec)
+            dataset_rob.append(rob)
+
+    return np.mean(dataset_acc), np.mean(dataset_prec), np.mean(dataset_rob)
 
 
 def evaluate_method(config):
-    ##################### TODO
-    # GET THE MEANS OF THE VALIDATION AND THE TEST
-    # SHOW FINAL SCORE
-    calculate_results(config, "validation")
 
-    calculate_results(config, "test")
+    print('VALIDATION DATASET')
+    acc, prec, rob = calculate_results(config, "validation")
+    print("Accuracy:{} Precision:{} Roustness:{}".format(acc, prec, rob))
+
+    #print('TEST DATASET')
+    #calculate_results(config, "test")

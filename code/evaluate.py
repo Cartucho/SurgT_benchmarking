@@ -145,7 +145,6 @@ class Video:
 
 class Results:
     def __init__(self, config):
-        print(config)
         self.dir = config["dir"]
         self.n_misses_allowed = config["n_misses_allowed"]
         self.iou_threshold = config["iou_threshold"]
@@ -154,11 +153,10 @@ class Results:
         self.robustness_frames_counter = 0
         self.excessive_frames_counter = 0
         self.n_visible = 0
-        self.n_misses = 0
+        self.n_misses_successive = 0
 
-    def set_n_misses_to_zero(self):
-        self.n_misses = 0
-
+    def reset_n_successive_misses(self):
+        self.n_misses_successive = 0
 
     def assess_bbox_accuracy(self, bbox1_gt, bbox1_p, bbox2_gt, bbox2_p):
         """
@@ -166,34 +164,35 @@ class Results:
         """
         if bbox1_gt is None or bbox2_gt is None:
             if bbox1_p is not None or bbox2_p is not None:
+                # If the tracker made a prediction when the target is not visible
                 self.excessive_frames_counter += 1
             return False
-
         self.n_visible += 1
 
-        if bbox1_p is None or bbox2_p is None:
-            self.n_misses += 1
-            if self.n_misses > self.n_misses_allowed:
-                return True
-            return False
+        if bbox1_p is not None and bbox2_p is not None:
+            left_accuracy = self.get_accuracy_frame(bbox1_gt, bbox1_p)
+            right_accuracy = self.get_accuracy_frame(bbox2_gt, bbox2_p)
 
-        left_accuracy = self.get_accuracy_frame(bbox1_gt, bbox1_p)
-        right_accuracy = self.get_accuracy_frame(bbox2_gt, bbox2_p)
+            self.accuracy_list.append([left_accuracy, right_accuracy])
 
-        self.accuracy_list.append([left_accuracy, right_accuracy])
-
-        if left_accuracy > self.iou_threshold and right_accuracy > self.iou_threshold:
-            self.robustness_frames_counter += 1
-            left_precision = self.get_precision_centroid_frame(bbox1_gt, bbox1_p)
-            right_precision = self.get_precision_centroid_frame(bbox2_gt, bbox2_p)
-            self.precision_list.append([left_precision, right_precision])
-            self.n_misses = 0
+            if left_accuracy > self.iou_threshold and right_accuracy > self.iou_threshold:
+                self.robustness_frames_counter += 1
+                left_precision = self.get_precision_centroid_frame(bbox1_gt, bbox1_p)
+                right_precision = self.get_precision_centroid_frame(bbox2_gt, bbox2_p)
+                self.precision_list.append([left_precision, right_precision])
+                self.reset_n_successive_misses()
+                return False
         else:
-            self.n_misses += 1
-            if self.n_misses > self.n_misses_allowed:
-                return True
+            # Tracker failed to predict
+            self.accuracy_list.append([0.0, 0.0])
 
-        return False
+        self.n_misses_successive += 1
+        if self.n_misses_successive > self.n_misses_allowed:
+            # Keep only the accuracies before tracking failure
+            del accuracy_list[-self.n_misses_successive:]
+            self.reset_n_successive_misses()
+            return True
+
 
     def get_accuracy_frame(self, bbox_gt, bbox_p):
         x1, y1, x2, y2 = [bbox_gt[0], bbox_gt[1], bbox_gt[0]+bbox_gt[2], bbox_gt[1]+bbox_gt[3]]
@@ -213,6 +212,7 @@ class Results:
         areabox2 = widthbox2 * heightbox2
         areaunion = areaboxl + areabox2 - areainter
         iou = areainter / float(areaunion)
+        assert(iou >= 0.0 and iou <= 1.0)
         return iou
 
     def get_precision_centroid_frame(self, bbox_gt, bbox_p):
@@ -221,6 +221,7 @@ class Results:
         diag_gt = np.sqrt(np.sum(bbox_gt[2]**2+bbox_gt[3]**2))/2 # /2 because maximum overlap len
         diag_p = np.sqrt(np.sum(bbox_p[2]**2+bbox_p[3]**2))/2
         cp_distance = 1 - np.sqrt(np.sum(np.abs(cp_gt-cp_p)**2))/(diag_gt+diag_p)
+        assert(cp_distance >= 0.0 and cp_distance <= 1.0)
         return cp_distance
 
     def get_full_metric(self):
@@ -231,6 +232,7 @@ class Results:
         acc = np.mean([np.sum(np.array(self.accuracy_list)[:, 0]) / self.n_visible, np.sum(np.array(self.accuracy_list)[:, 1]) / self.n_visible])
         prec = np.mean([np.sum(np.array(self.precision_list)[:, 0]) / self.n_visible, np.sum(np.array(self.precision_list)[:, 1]) / self.n_visible])
         rob = self.robustness_frames_counter / (self.n_visible + self.excessive_frames_counter)
+        assert(rob >= 0.0 and rob <= 1.0)
         return acc, prec, rob # acc, prec, rob
 
 
@@ -285,7 +287,6 @@ def assess_keypoint(v, r):
             # Initialise or re-initialize the tracker
             if bbox1_gt is not None and bbox2_gt is not None:
                 t = Tracker(im1, im2, bbox1_gt, bbox2_gt)
-                r.set_n_misses_to_zero()
         else:
             # Update the tracker
             bbox1_p, bbox2_p = t.tracker_update(im1, im2)
@@ -300,7 +301,7 @@ def assess_keypoint(v, r):
         # Show animation of the tracker
         frame_aug = draw_bb_in_frame(im1, im2, bbox1_gt, bbox2_gt, bbox1_p, bbox2_p, thick)
         cv.imshow(window_name, frame_aug)
-        cv.waitKey(10)
+        cv.waitKey(1)
 
 def calculate_results_for_video(case_sample_path, is_to_rectify, config_results):
     # Load video
@@ -344,6 +345,7 @@ def calculate_results(config, valid_or_test):
 
         for case_sample_path in case_paths:
             acc, prec, rob = calculate_results_for_video(case_sample_path, is_to_rectify, config_results)
+            print("{} Acc:{} Prec:{} Rob:{}".format(case_sample_path, acc, prec, rob))
 
             dataset_acc.append(acc)
             dataset_prec.append(prec)
@@ -356,6 +358,7 @@ def evaluate_method(config):
 
     print('VALIDATION DATASET')
     acc, prec, rob = calculate_results(config, "validation")
+    print('VALIDATION FINAL SCORE')
     print("Accuracy:{} Precision:{} Roustness:{}".format(acc, prec, rob))
 
     #print('TEST DATASET')

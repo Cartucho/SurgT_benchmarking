@@ -5,7 +5,6 @@ from code.method import Tracker
 import cv2 as cv
 import numpy as np
 
-
 class Video:
     def __init__(self, case_sample_path, is_to_rectify):
         # Load video info
@@ -142,6 +141,19 @@ class Video:
     def stop_video(self):
         self.cap.release()
 
+class EAORank:
+    def __init__(self, config):
+        self.N_high = config["results"]["N_high"]
+        self.N_low = config["results"]["N_low"]
+        self.padded_list = []
+
+    def append_padded_vector(self, padded_vec):
+        self.padded_list.append(padded_vec)
+
+    def calculate_eao_score(self):
+        return np.mean(self.padded_list)
+        #for i in range(max(len(l) for l in self.padded_list)):
+
 
 class Results:
     def __init__(self, config):
@@ -162,16 +174,21 @@ class Results:
         """
         Check if stereo tracking is a success or not
         """
+
+
         if bbox1_gt is None or bbox2_gt is None:
+            # collect in here
             if bbox1_p is not None or bbox2_p is not None:
                 # If the tracker made a prediction when the target is not visible
                 self.excessive_frames_counter += 1
-            return False
+            return False, 0.
+
         self.n_visible += 1
 
+        left_accuracy = self.get_accuracy_frame(bbox1_gt, bbox1_p)
+        right_accuracy = self.get_accuracy_frame(bbox2_gt, bbox2_p)
+
         if bbox1_p is not None and bbox2_p is not None:
-            left_accuracy = self.get_accuracy_frame(bbox1_gt, bbox1_p)
-            right_accuracy = self.get_accuracy_frame(bbox2_gt, bbox2_p)
 
             self.accuracy_list.append([left_accuracy, right_accuracy])
 
@@ -181,7 +198,7 @@ class Results:
                 right_precision = self.get_precision_centroid_frame(bbox2_gt, bbox2_p)
                 self.precision_list.append([left_precision, right_precision])
                 self.reset_n_successive_misses()
-                return False
+                return False, np.mean([left_accuracy, right_accuracy])
         else:
             # Tracker failed to predict
             self.accuracy_list.append([0.0, 0.0])
@@ -191,7 +208,7 @@ class Results:
             # Keep only the accuracies before tracking failure
             del self.accuracy_list[-self.n_misses_successive:]
             self.reset_n_successive_misses()
-            return True
+            return True, np.mean([left_accuracy, right_accuracy])
 
 
     def get_accuracy_frame(self, bbox_gt, bbox_p):
@@ -264,7 +281,7 @@ def draw_bb_in_frame(im1, im2, bbox1_gt, bbox2_gt, bbox1_p, bbox2_p, thck):
     return im_hstack
 
 
-def assess_keypoint(v, r):
+def assess_keypoint(rank, v, r):
     # Create window for results animation
     window_name = "Assessment animation"  # TODO: hardcoded
     thick = 2  # TODO: hardcoded
@@ -274,6 +291,12 @@ def assess_keypoint(v, r):
     # Variables for the assessment
     t = None
     reset_flag = False
+
+    frame_counter = 0  # counts all frames in video
+    start_sub_sequence = 0  # frame count for the start of every ss
+    sub_sequence_current = []  # all successful tracking vectors within a sub sequence
+    accumulate_ss_accuracy = []  # appends the current accuracy score to the current succ track vector
+
     # Use video to access a specific key point
     while v.cap.isOpened():
         # Get data of new frame
@@ -283,15 +306,34 @@ def assess_keypoint(v, r):
         im1, im2 = v.split_frame(frame)
         bbox1_gt, bbox2_gt = v.get_bbox_gt()
 
+        # if hard, set GT to None
+        if bbox1_gt is None or bbox2_gt is None:  # if GT is none, its the end of a ss
+            if len(sub_sequence_current) > 0:
+                sub_sequence_current.append(accumulate_ss_accuracy)  # appends the final accuracy vector
+                accumulate_ss_accuracy = []
+                end_sub_sequence = frame_counter  # frame end of ss
+                bias = 0  # start at end frame of previous vector
+                for ss in sub_sequence_current:
+                    pad_req = end_sub_sequence-start_sub_sequence-len(ss)-bias  # length of padding req
+                    rank.append_padded_vector(ss + [0.]*pad_req)  # padding and appending to list
+                    bias += len(ss)
+                sub_sequence_current = []
+
+            start_sub_sequence = frame_counter + 1
+
+
         if t is None or reset_flag:
             # Initialise or re-initialize the tracker
             if bbox1_gt is not None and bbox2_gt is not None:
                 t = Tracker(im1, im2, bbox1_gt, bbox2_gt)
+                sub_sequence_current.append(accumulate_ss_accuracy)
+                accumulate_ss_accuracy = []
         else:
             # Update the tracker
             bbox1_p, bbox2_p = t.tracker_update(im1, im2)
             # Checks if accuracy is > t for both left and right
-            reset_flag = r.assess_bbox_accuracy(bbox1_gt, bbox1_p, bbox2_gt, bbox2_p)
+            reset_flag, accuracy_value = r.assess_bbox_accuracy(bbox1_gt, bbox1_p, bbox2_gt, bbox2_p)
+            accumulate_ss_accuracy.append(accuracy_value)
             if reset_flag:
                 # If the tracker failed then we need to set it to None so that we re-initialize
                 t = None
@@ -303,7 +345,21 @@ def assess_keypoint(v, r):
         cv.imshow(window_name, frame_aug)
         cv.waitKey(1)
 
-def calculate_results_for_video(case_sample_path, is_to_rectify, config_results):
+        frame_counter += 1
+
+    sub_sequence_current.append(accumulate_ss_accuracy)
+
+    if len(sub_sequence_current) > 0:
+        end_sub_sequence = sub_sequence_counter + 1
+        bias = 0
+        for ss in sub_sequence_current:
+            pad_req = end_sub_sequence - start_sub_sequence - len(ss) - bias
+            rank.append_padded_vector(ss + [0.] * pad_req)
+            bias += len(ss)
+        rank.global_tracking_list(padded_list)
+
+
+def calculate_results_for_video(rank,case_sample_path, is_to_rectify, config_results):
     # Load video
     v = Video(case_sample_path, is_to_rectify)
 
@@ -317,7 +373,7 @@ def calculate_results_for_video(case_sample_path, is_to_rectify, config_results)
         # Load ground-truth for the specific keypoint being tested
         v.load_ground_truth(ind_kpt)
         r = Results(config_results)
-        assess_keypoint(v, r)
+        assess_keypoint(rank, v, r)
         acc, prec, rob = r.get_full_metric()
         keypoints_acc.append(acc)
         keypoints_prec.append(prec)
@@ -332,6 +388,7 @@ def calculate_results_for_video(case_sample_path, is_to_rectify, config_results)
 
 
 def calculate_results(config, valid_or_test):
+    rank = EAORank(config)
     is_to_rectify = config["is_to_rectify"]
     config_data = config[valid_or_test]
     if config_data["is_to_evaluate"]:
@@ -344,22 +401,24 @@ def calculate_results(config, valid_or_test):
         dataset_rob = []
 
         for case_sample_path in case_paths:
-            acc, prec, rob = calculate_results_for_video(case_sample_path, is_to_rectify, config_results)
+            acc, prec, rob = calculate_results_for_video(rank,case_sample_path, is_to_rectify, config_results)
             print("{} Acc:{} Prec:{} Rob:{}".format(case_sample_path, acc, prec, rob))
 
             dataset_acc.append(acc)
             dataset_prec.append(prec)
             dataset_rob.append(rob)
 
-    return np.mean(dataset_acc), np.mean(dataset_prec), np.mean(dataset_rob)
+    eao = rank.calculate_eao_score()
+
+    return eao, np.mean(dataset_acc), np.mean(dataset_prec), np.mean(dataset_rob)
 
 
 def evaluate_method(config):
 
     print('VALIDATION DATASET')
-    acc, prec, rob = calculate_results(config, "validation")
+    eao, acc, prec, rob = calculate_results(config, "validation")
     print('VALIDATION FINAL SCORE')
-    print("Accuracy:{} Precision:{} Roustness:{}".format(acc, prec, rob))
+    print("EAO:{} Accuracy:{} Precision:{} Roustness:{}".format(eao, acc, prec, rob))
 
     #print('TEST DATASET')
     #calculate_results(config, "test")

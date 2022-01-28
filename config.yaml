@@ -1,8 +1,8 @@
 is_to_rectify: True # We assumed that the methods use rectified images as input!
 results:
     dir: "results"
-    n_misses_allowed: 5
-    iou_threshold: 0.5
+    n_misses_allowed: 10
+    iou_threshold: 0.1
 validation:
     is_to_download: True # Set to True to download the `validation` data!
     is_to_evaluate: True # Set to True to calculate the `validation` results!

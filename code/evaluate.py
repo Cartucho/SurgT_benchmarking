@@ -141,6 +141,7 @@ class Video:
     def stop_video(self):
         self.cap.release()
 
+
 class EAORank:
     def __init__(self, config):
         self.N_high = config["results"]["N_high"]
@@ -181,7 +182,7 @@ class Results:
             if bbox1_p is not None or bbox2_p is not None:
                 # If the tracker made a prediction when the target is not visible
                 self.excessive_frames_counter += 1
-            return False, 0.
+            return False, None
 
         self.n_visible += 1
 
@@ -306,7 +307,7 @@ def assess_keypoint(rank, v, r):
         im1, im2 = v.split_frame(frame)
         bbox1_gt, bbox2_gt = v.get_bbox_gt()
 
-        # if hard, set GT to None
+        # TODO: if hard, set GT to None
         if bbox1_gt is None or bbox2_gt is None:  # if GT is none, its the end of a ss
             if len(sub_sequence_current) > 0:
                 sub_sequence_current.append(accumulate_ss_accuracy)  # appends the final accuracy vector
@@ -333,7 +334,8 @@ def assess_keypoint(rank, v, r):
             bbox1_p, bbox2_p = t.tracker_update(im1, im2)
             # Checks if accuracy is > t for both left and right
             reset_flag, accuracy_value = r.assess_bbox_accuracy(bbox1_gt, bbox1_p, bbox2_gt, bbox2_p)
-            accumulate_ss_accuracy.append(accuracy_value)
+            if accuracy_value is not None:
+                accumulate_ss_accuracy.append(accuracy_value)
             if reset_flag:
                 # If the tracker failed then we need to set it to None so that we re-initialize
                 t = None

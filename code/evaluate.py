@@ -154,16 +154,23 @@ class EAORank:
 
 
     def calculate_eao_curve(self):
-        self.phi = []
-        print(self.all_padded_ss_list)
-        exit()
-        #for i in range(self.largest_vec):
-        #    Compute phi for each i 
+        self.eao_curve = []
+        max_ss_length = max(len(ss) for ss in self.all_padded_ss_list)
+        for i in range(max_ss_length):
+            ss_sum = 0.0
+            ss_counter = 0
+            for ss in self.all_padded_ss_list:
+                if len(ss) > i:
+                    # TODO future: continue if flagged as difficult "d"
+                    ss_sum += ss[i]
+                    ss_counter += 1
+            score = ss_sum / ss_counter
+            self.eao_curve.append(score)
 
 
     def calculate_eao_score(self):
         self.calculate_eao_curve()
-        return None # TODO
+        return np.mean(self.eao_curve)#[self.N_low:self.N_high + 1]) TODO: change N_low and N_high values in config!
         
 
 class SSeq:

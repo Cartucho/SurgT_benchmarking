@@ -141,6 +141,21 @@ class Video:
     def stop_video(self):
         self.cap.release()
 
+class Statistics:
+    def __init__(self):
+        self.dataset_acc = []
+        self.dataset_prec = []
+        self.dataset_rob = []
+
+    def append_acc(self, acc):
+        self.dataset_acc.append(acc)
+
+    def append_prec(self, prec):
+        self.dataset_prec.append(prec)
+
+    def append_rob(self, rob):
+        self.dataset_rob.append(rob)
+
 
 class EAORank:
     def __init__(self, config):
@@ -410,30 +425,31 @@ def calculate_results_for_video(rank,case_sample_path, is_to_rectify, config_res
 
 
 def calculate_results(config, valid_or_test):
+
     config_results = config["results"]
-    rank = EAORank(config_results)
     is_to_rectify = config["is_to_rectify"]
     config_data = config[valid_or_test]
+
+    rank = EAORank(config_results)
+    stats = Statistics()
+
     if config_data["is_to_evaluate"]:
         case_paths, _ = utils.get_case_paths_and_links(config_data)
         # Go through each video
-        dataset_acc = [] # TODO: this should be inside the rank class!
-        dataset_prec = [] # TODO: this should be inside the rank class!
-        dataset_rob = [] # TODO: this should be inside the rank class!
-        counter = 0 # TODO: remove
+        counter = 0  # TODO: remove
         for case_sample_path in case_paths:
-            if counter == 11:# TODO: remove
+            if counter >= 10:# TODO: remove
                 acc, prec, rob = calculate_results_for_video(rank,case_sample_path, is_to_rectify, config_results)
                 print("{} Acc:{} Prec:{} Rob:{}".format(case_sample_path, acc, prec, rob))
 
-                dataset_acc.append(acc) # TODO: this should be inside the rank class!
-                dataset_prec.append(prec) # TODO: this should be inside the rank class!
-                dataset_rob.append(rob) # TODO: this should be inside the rank class!
+                stats.append_acc(acc)
+                stats.append_prec(prec)
+                stats.append_rob(rob)
             counter += 1 # TODO: remove
 
     eao = rank.calculate_eao_score()
 
-    return eao, np.mean(dataset_acc), np.mean(dataset_prec), np.mean(dataset_rob)
+    return eao, np.mean(stats.dataset_acc), np.mean(stats.dataset_prec), np.mean(stats.dataset_rob)
 
 
 def evaluate_method(config):

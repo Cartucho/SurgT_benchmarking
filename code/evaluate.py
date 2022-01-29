@@ -341,8 +341,7 @@ def assess_keypoint(rank, v, r):
     t = None
     ss = SSeq()
 
-
-    # Use video to access a specific key point
+    # Use video and load a specific key point
     while v.cap.isOpened():
         # Get data of new frame
         frame = v.get_frame()
@@ -359,20 +358,21 @@ def assess_keypoint(rank, v, r):
         else:
             # Update the tracker
             bbox1_p, bbox2_p = t.tracker_update(im1, im2)
-            # Checks if accuracy is > t for both left and right
+            # Compute metrics for video and keep track of sub-sequences
             reset_flag = assess_bbox(ss, rank, v, r, bbox1_gt, bbox1_p, bbox2_gt, bbox2_p)
             if reset_flag:
                 # If the tracker failed then we need to set it to None so that we re-initialize
                 t = None
-                bbox1_p, bbox2_p = None, None # For drawing the animation
                 reset_flag = False
+                # In visual animation, we hide the last predicted bboxs when the tracker fails
+                bbox1_p, bbox2_p = None, None
 
         # Show animation of the tracker
         frame_aug = draw_bb_in_frame(im1, im2, bbox1_gt, bbox2_gt, bbox1_p, bbox2_p, thick)
         cv.imshow(window_name, frame_aug)
         cv.waitKey(1)
 
-    # Do one last to finish the sub-sequences without change the results
+    # Do one last to finish the sub-sequences without changing the results
     assess_bbox(ss, rank, v, r, None, None, None, None)
 
 

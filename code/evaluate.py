@@ -36,6 +36,7 @@ class Video:
     def video_restart(self):
         self.cap = cv.VideoCapture(self.video_path)
         self.bbox_counter = 0
+        self.frame_counter = 0
 
 
     def load_ground_truth(self, ind_kpt):
@@ -133,6 +134,7 @@ class Video:
         if self.cap.isOpened():
             ret, frame = self.cap.read()
             if ret:
+                self.frame_counter += 1
                 return frame
         self.cap.release()
         return None
@@ -306,7 +308,6 @@ def assess_keypoint(rank, v, r):
     t = None
     reset_flag = False
 
-    frame_counter = 0  # counts all frames in video
     start_sub_sequence = 0  # frame count for the start of every ss
     sub_sequence_current = []  # all successful tracking vectors within a sub sequence
     accumulate_ss_accuracy = []  # appends the current accuracy score to the current succ track vector
@@ -325,7 +326,7 @@ def assess_keypoint(rank, v, r):
             if len(sub_sequence_current) > 0:
                 sub_sequence_current.append(accumulate_ss_accuracy)  # appends the final accuracy vector
                 accumulate_ss_accuracy = []
-                end_sub_sequence = frame_counter  # frame end of ss
+                end_sub_sequence = v.frame_counter - 1  # frame end of ss
                 bias = 0  # start at end frame of previous vector
                 for ss in sub_sequence_current:
                     pad_req = end_sub_sequence-start_sub_sequence-len(ss)-bias  # length of padding req
@@ -333,7 +334,7 @@ def assess_keypoint(rank, v, r):
                     bias += len(ss)
                 sub_sequence_current = []
 
-            start_sub_sequence = frame_counter + 1
+            start_sub_sequence = v.frame_counter
 
 
         if t is None or reset_flag:
@@ -360,7 +361,6 @@ def assess_keypoint(rank, v, r):
         cv.imshow(window_name, frame_aug)
         cv.waitKey(1)
 
-        frame_counter += 1
 
     sub_sequence_current.append(accumulate_ss_accuracy)
 

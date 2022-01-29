@@ -171,6 +171,14 @@ class EAORank:
         return None # TODO
         
 
+class SSeq:
+    def __init__(self):
+        # Initalized once per video
+        self.start_sub_sequence = 0  # frame count for the start of every ss
+        self.sub_sequence_current = []  # all successful tracking vectors within a sub sequence
+        self.accumulate_ss_accuracy = []  # appends the current accuracy score to the current succ track vector
+
+
 
 class Results:
     def __init__(self, config):
@@ -297,6 +305,32 @@ def draw_bb_in_frame(im1, im2, bbox1_gt, bbox2_gt, bbox1_p, bbox2_p, thck):
     return im_hstack
 
 
+def assess_bbox(ss, rank, v, r, bbox1_gt, bbox1_p, bbox2_gt, bbox2_p):
+    # TODO: if hard, set GT to None
+    if bbox1_gt is None or bbox2_gt is None:  # if GT is none, its the end of a ss
+        if len(ss.sub_sequence_current) > 0:
+            ss.sub_sequence_current.append(ss.accumulate_ss_accuracy)  # appends the final accuracy vector
+            ss.accumulate_ss_accuracy = []
+            ss.end_sub_sequence = v.frame_counter - 1  # frame end of ss
+            bias = 0  # start at end frame of previous vector
+            for ss_tmp in ss.sub_sequence_current:
+                pad_req = ss.end_sub_sequence-ss.start_sub_sequence-len(ss_tmp)-bias  # length of padding req
+                rank.append_padded_vector(ss_tmp + [0.]*pad_req)  # padding and appending to list
+                bias += len(ss_tmp)
+            ss.sub_sequence_current = []
+
+        ss.start_sub_sequence = v.frame_counter
+            
+    reset_flag, accuracy_value = r.assess_bbox_accuracy(bbox1_gt, bbox1_p, bbox2_gt, bbox2_p)
+    if reset_flag:
+        ss.sub_sequence_current.append(ss.accumulate_ss_accuracy)
+        ss.accumulate_ss_accuracy = []
+    else:
+        if accuracy_value is not None:
+            ss.accumulate_ss_accuracy.append(accuracy_value)
+    return reset_flag
+
+
 def assess_keypoint(rank, v, r):
     # Create window for results animation
     window_name = "Assessment animation"  # TODO: hardcoded
@@ -306,10 +340,8 @@ def assess_keypoint(rank, v, r):
 
     # Variables for the assessment
     t = None
+    ss = SSeq()
 
-    start_sub_sequence = 0  # frame count for the start of every ss
-    sub_sequence_current = []  # all successful tracking vectors within a sub sequence
-    accumulate_ss_accuracy = []  # appends the current accuracy score to the current succ track vector
 
     # Use video to access a specific key point
     while v.cap.isOpened():
@@ -320,22 +352,6 @@ def assess_keypoint(rank, v, r):
         im1, im2 = v.split_frame(frame)
         bbox1_gt, bbox2_gt = v.get_bbox_gt()
 
-        # TODO: if hard, set GT to None
-        if bbox1_gt is None or bbox2_gt is None:  # if GT is none, its the end of a ss
-            if len(sub_sequence_current) > 0:
-                sub_sequence_current.append(accumulate_ss_accuracy)  # appends the final accuracy vector
-                accumulate_ss_accuracy = []
-                end_sub_sequence = v.frame_counter - 1  # frame end of ss
-                bias = 0  # start at end frame of previous vector
-                for ss in sub_sequence_current:
-                    pad_req = end_sub_sequence-start_sub_sequence-len(ss)-bias  # length of padding req
-                    rank.append_padded_vector(ss + [0.]*pad_req)  # padding and appending to list
-                    bias += len(ss)
-                sub_sequence_current = []
-
-            start_sub_sequence = v.frame_counter
-
-
         if t is None:
             # Initialise or re-initialize the tracker
             if bbox1_gt is not None and bbox2_gt is not None:
@@ -345,31 +361,20 @@ def assess_keypoint(rank, v, r):
             # Update the tracker
             bbox1_p, bbox2_p = t.tracker_update(im1, im2)
             # Checks if accuracy is > t for both left and right
-            reset_flag, accuracy_value = r.assess_bbox_accuracy(bbox1_gt, bbox1_p, bbox2_gt, bbox2_p)
-            if accuracy_value is not None:
-                accumulate_ss_accuracy.append(accuracy_value)
+            reset_flag = assess_bbox(ss, rank, v, r, bbox1_gt, bbox1_p, bbox2_gt, bbox2_p)
             if reset_flag:
                 # If the tracker failed then we need to set it to None so that we re-initialize
                 t = None
                 bbox1_p, bbox2_p = None, None # For drawing the animation
                 reset_flag = False
-                sub_sequence_current.append(accumulate_ss_accuracy)
-                accumulate_ss_accuracy = []
 
         # Show animation of the tracker
         frame_aug = draw_bb_in_frame(im1, im2, bbox1_gt, bbox2_gt, bbox1_p, bbox2_p, thick)
         cv.imshow(window_name, frame_aug)
         cv.waitKey(1)
 
-
-    sub_sequence_current.append(accumulate_ss_accuracy)
-
-    if len(sub_sequence_current) > 0:
-        bias = 0
-        for ss in sub_sequence_current:
-            pad_req = end_sub_sequence - start_sub_sequence - len(ss) - bias
-            rank.append_padded_vector(ss + [0.] * pad_req)
-            bias += len(ss)
+    # Do one last to finish the sub-sequences without change the results
+    reset_flag = assess_bbox(ss, rank, v, r, None, None, None, None)
 
 
 def calculate_results_for_video(rank,case_sample_path, is_to_rectify, config_results):

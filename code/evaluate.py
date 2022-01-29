@@ -36,7 +36,7 @@ class Video:
     def video_restart(self):
         self.cap = cv.VideoCapture(self.video_path)
         self.bbox_counter = 0
-        self.frame_counter = 0
+        self.frame_counter = -1 # So that the first get_frame() goes to zero
 
 
     def load_ground_truth(self, ind_kpt):
@@ -312,14 +312,14 @@ def assess_bbox(ss, rank, v, r, bbox1_gt, bbox1_p, bbox2_gt, bbox2_p):
         if len(ss.sub_sequence_current) > 0:
             ss.sub_sequence_current.append(ss.accumulate_ss_accuracy)  # appends the final accuracy vector
             ss.accumulate_ss_accuracy = []
-            ss.end_sub_sequence = v.frame_counter - 1  # frame end of ss
+            ss.end_sub_sequence = v.frame_counter  # frame end of ss
             bias = 0  # start at end frame of previous vector
             for ss_tmp in ss.sub_sequence_current:
                 pad_req = ss.end_sub_sequence-ss.start_sub_sequence-len(ss_tmp)-bias  # length of padding req
                 rank.append_padded_vector(ss_tmp + [0.]*pad_req)  # padding and appending to list
                 bias += len(ss_tmp)
             ss.sub_sequence_current = []
-        ss.start_sub_sequence = v.frame_counter
+        ss.start_sub_sequence = v.frame_counter + 1
             
     reset_flag, accuracy_value = r.assess_bbox_accuracy(bbox1_gt, bbox1_p, bbox2_gt, bbox2_p)
     if reset_flag:

@@ -318,7 +318,6 @@ def assess_bbox(ss, rank, v, r, bbox1_gt, bbox1_p, bbox2_gt, bbox2_p):
                 rank.append_padded_vector(ss_tmp + [0.]*pad_req)  # padding and appending to list
                 bias += len(ss_tmp)
             ss.sub_sequence_current = []
-
         ss.start_sub_sequence = v.frame_counter
             
     reset_flag, accuracy_value = r.assess_bbox_accuracy(bbox1_gt, bbox1_p, bbox2_gt, bbox2_p)
@@ -374,7 +373,7 @@ def assess_keypoint(rank, v, r):
         cv.waitKey(1)
 
     # Do one last to finish the sub-sequences without change the results
-    reset_flag = assess_bbox(ss, rank, v, r, None, None, None, None)
+    assess_bbox(ss, rank, v, r, None, None, None, None)
 
 
 def calculate_results_for_video(rank,case_sample_path, is_to_rectify, config_results):

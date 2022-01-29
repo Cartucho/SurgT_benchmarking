@@ -306,7 +306,6 @@ def assess_keypoint(rank, v, r):
 
     # Variables for the assessment
     t = None
-    reset_flag = False
 
     start_sub_sequence = 0  # frame count for the start of every ss
     sub_sequence_current = []  # all successful tracking vectors within a sub sequence
@@ -337,7 +336,7 @@ def assess_keypoint(rank, v, r):
             start_sub_sequence = v.frame_counter
 
 
-        if t is None or reset_flag:
+        if t is None:
             # Initialise or re-initialize the tracker
             if bbox1_gt is not None and bbox2_gt is not None:
                 t = Tracker(im1, im2, bbox1_gt, bbox2_gt)

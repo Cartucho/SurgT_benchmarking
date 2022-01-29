@@ -339,6 +339,7 @@ def assess_keypoint(rank, v, r):
         if t is None:
             # Initialise or re-initialize the tracker
             if bbox1_gt is not None and bbox2_gt is not None:
+                # We can only initialize if we have ground-truth bboxes
                 t = Tracker(im1, im2, bbox1_gt, bbox2_gt)
         else:
             # Update the tracker

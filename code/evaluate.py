@@ -146,19 +146,16 @@ class EAORank:
     def __init__(self, config):
         self.N_high = config["N_high"]
         self.N_low = config["N_low"]
-        self.padded_list = []
-        self.largest_vec = 0
+        self.all_padded_ss_list = []
 
 
-    def append_padded_vector(self, padded_vec):
-        self.padded_list.append(padded_vec)
-        if len(padded_vec) > self.largest_vec:
-            self.largest_vec = len(padded_vec)
+    def append_ss_list(self, padded_list):
+        self.all_padded_ss_list += padded_list
 
 
     def calculate_eao_curve(self):
         self.phi = []
-        print(self.padded_list)
+        print(self.all_padded_ss_list)
         exit()
         #for i in range(self.largest_vec):
         #    Compute phi for each i 
@@ -175,7 +172,10 @@ class SSeq:
         self.start_sub_sequence = 0  # frame count for the start of every ss
         self.sub_sequence_current = []  # all successful tracking vectors within a sub sequence
         self.accumulate_ss_accuracy = []  # appends the current accuracy score to the current succ track vector
+        self.padded_list = []
 
+    def append_padded_vector(self, padded_vec):
+        self.padded_list.append(padded_vec)
 
 
 class KptResults:
@@ -304,7 +304,7 @@ def draw_bb_in_frame(im1, im2, bbox1_gt, bbox2_gt, bbox1_p, bbox2_p, thck):
     return im_hstack
 
 
-def assess_bbox(ss, rank, frame_counter, kr, bbox1_gt, bbox1_p, bbox2_gt, bbox2_p):
+def assess_bbox(ss, frame_counter, kr, bbox1_gt, bbox1_p, bbox2_gt, bbox2_p):
     # TODO: if hard, set GT to None
     if bbox1_gt is None or bbox2_gt is None:  # if GT is none, its the end of a ss
         if len(ss.sub_sequence_current) > 0:
@@ -314,7 +314,7 @@ def assess_bbox(ss, rank, frame_counter, kr, bbox1_gt, bbox1_p, bbox2_gt, bbox2_
             bias = 0  # start at end frame of previous vector
             for ss_tmp in ss.sub_sequence_current:
                 pad_req = ss.end_sub_sequence-ss.start_sub_sequence-len(ss_tmp)-bias  # length of padding req
-                rank.append_padded_vector(ss_tmp + [0.]*pad_req)  # padding and appending to list
+                ss.append_padded_vector(ss_tmp + [0.]*pad_req)  # padding and appending to list
                 bias += len(ss_tmp)
             ss.sub_sequence_current = []
         ss.start_sub_sequence = frame_counter + 1
@@ -329,18 +329,15 @@ def assess_bbox(ss, rank, frame_counter, kr, bbox1_gt, bbox1_p, bbox2_gt, bbox2_
     return reset_flag
 
 
-def assess_keypoint(rank, v, kr):
+def assess_keypoint(v, kr, ss):
     # Create window for results animation
     window_name = "Assessment animation"  # TODO: hardcoded
     thick = 2  # TODO: hardcoded
     bbox1_p, bbox2_p = None, None # For the visual animation
     cv.namedWindow(window_name, cv.WINDOW_KEEPRATIO)
 
-    # Variables for the assessment
-    t = None
-    ss = SSeq()
-
     # Use video and load a specific key point
+    t = None
     while v.cap.isOpened():
         # Get data of new frame
         frame, frame_counter = v.get_frame()
@@ -358,7 +355,7 @@ def assess_keypoint(rank, v, kr):
             # Update the tracker
             bbox1_p, bbox2_p = t.tracker_update(im1, im2)
             # Compute metrics for video and keep track of sub-sequences
-            reset_flag = assess_bbox(ss, rank, frame_counter, kr, bbox1_gt, bbox1_p, bbox2_gt, bbox2_p)
+            reset_flag = assess_bbox(ss, frame_counter, kr, bbox1_gt, bbox1_p, bbox2_gt, bbox2_p)
             if reset_flag:
                 # If the tracker failed then we need to set it to None so that we re-initialize
                 t = None
@@ -372,7 +369,7 @@ def assess_keypoint(rank, v, kr):
         cv.waitKey(1)
 
     # Do one last to finish the sub-sequences without changing the results
-    assess_bbox(ss, rank, frame_counter, kr, None, None, None, None)
+    assess_bbox(ss, frame_counter, kr, None, None, None, None)
 
 
 def calculate_results_for_video(rank,case_sample_path, is_to_rectify, config_results):
@@ -389,8 +386,10 @@ def calculate_results_for_video(rank,case_sample_path, is_to_rectify, config_res
         # Load ground-truth for the specific keypoint being tested
         v.load_ground_truth(ind_kpt)
         kr = KptResults(config_results)
-        assess_keypoint(rank, v, kr)
+        ss = SSeq()
+        assess_keypoint(v, kr, ss)
         acc, prec, rob = kr.get_full_metric()
+        rank.append_ss_list(ss.padded_list)
         keypoints_acc.append(acc)
         keypoints_prec.append(prec)
         keypoints_rob.append(rob)

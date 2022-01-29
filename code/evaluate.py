@@ -146,8 +146,8 @@ class Video:
 
 class EAORank:
     def __init__(self, config):
-        self.N_high = config["results"]["N_high"]
-        self.N_low = config["results"]["N_low"]
+        self.N_high = config["N_high"]
+        self.N_low = config["N_low"]
         self.padded_list = []
         self.largest_vec = 0
 
@@ -405,14 +405,13 @@ def calculate_results_for_video(rank,case_sample_path, is_to_rectify, config_res
 
 
 def calculate_results(config, valid_or_test):
-    rank = EAORank(config)
+    config_results = config["results"]
+    rank = EAORank(config_results)
     is_to_rectify = config["is_to_rectify"]
     config_data = config[valid_or_test]
     if config_data["is_to_evaluate"]:
-        config_results = config["results"]
         case_paths, _ = utils.get_case_paths_and_links(config_data)
         # Go through each video
-
         dataset_acc = []
         dataset_prec = []
         dataset_rob = []

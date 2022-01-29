@@ -236,6 +236,7 @@ class Results:
 
 
     def get_accuracy_frame(self, bbox_gt, bbox_p):
+        # TODO: here we could have used the function get_bbox_corners(), to get x1 ....
         x1, y1, x2, y2 = [bbox_gt[0], bbox_gt[1], bbox_gt[0]+bbox_gt[2], bbox_gt[1]+bbox_gt[3]]
         x3, y3, x4, y4 = [bbox_p[0], bbox_p[1], bbox_p[0]+bbox_p[2], bbox_p[1]+bbox_p[3]]
         x_inter1 = max(x1, x3)

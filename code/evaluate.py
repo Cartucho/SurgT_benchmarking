@@ -178,7 +178,7 @@ class SSeq:
 
 
 
-class Results:
+class KptResults:
     def __init__(self, config):
         self.dir = config["dir"]
         self.n_misses_allowed = config["n_misses_allowed"]
@@ -304,7 +304,7 @@ def draw_bb_in_frame(im1, im2, bbox1_gt, bbox2_gt, bbox1_p, bbox2_p, thck):
     return im_hstack
 
 
-def assess_bbox(ss, rank, frame_counter, r, bbox1_gt, bbox1_p, bbox2_gt, bbox2_p):
+def assess_bbox(ss, rank, frame_counter, kr, bbox1_gt, bbox1_p, bbox2_gt, bbox2_p):
     # TODO: if hard, set GT to None
     if bbox1_gt is None or bbox2_gt is None:  # if GT is none, its the end of a ss
         if len(ss.sub_sequence_current) > 0:
@@ -319,7 +319,7 @@ def assess_bbox(ss, rank, frame_counter, r, bbox1_gt, bbox1_p, bbox2_gt, bbox2_p
             ss.sub_sequence_current = []
         ss.start_sub_sequence = frame_counter + 1
             
-    reset_flag, accuracy_value = r.assess_bbox_accuracy(bbox1_gt, bbox1_p, bbox2_gt, bbox2_p)
+    reset_flag, accuracy_value = kr.assess_bbox_accuracy(bbox1_gt, bbox1_p, bbox2_gt, bbox2_p)
     if reset_flag:
         ss.sub_sequence_current.append(ss.accumulate_ss_accuracy)
         ss.accumulate_ss_accuracy = []
@@ -329,7 +329,7 @@ def assess_bbox(ss, rank, frame_counter, r, bbox1_gt, bbox1_p, bbox2_gt, bbox2_p
     return reset_flag
 
 
-def assess_keypoint(rank, v, r):
+def assess_keypoint(rank, v, kr):
     # Create window for results animation
     window_name = "Assessment animation"  # TODO: hardcoded
     thick = 2  # TODO: hardcoded
@@ -358,7 +358,7 @@ def assess_keypoint(rank, v, r):
             # Update the tracker
             bbox1_p, bbox2_p = t.tracker_update(im1, im2)
             # Compute metrics for video and keep track of sub-sequences
-            reset_flag = assess_bbox(ss, rank, frame_counter, r, bbox1_gt, bbox1_p, bbox2_gt, bbox2_p)
+            reset_flag = assess_bbox(ss, rank, frame_counter, kr, bbox1_gt, bbox1_p, bbox2_gt, bbox2_p)
             if reset_flag:
                 # If the tracker failed then we need to set it to None so that we re-initialize
                 t = None
@@ -372,7 +372,7 @@ def assess_keypoint(rank, v, r):
         cv.waitKey(1)
 
     # Do one last to finish the sub-sequences without changing the results
-    assess_bbox(ss, rank, frame_counter, r, None, None, None, None)
+    assess_bbox(ss, rank, frame_counter, kr, None, None, None, None)
 
 
 def calculate_results_for_video(rank,case_sample_path, is_to_rectify, config_results):
@@ -388,9 +388,9 @@ def calculate_results_for_video(rank,case_sample_path, is_to_rectify, config_res
     for ind_kpt in range(v.n_keypoints):
         # Load ground-truth for the specific keypoint being tested
         v.load_ground_truth(ind_kpt)
-        r = Results(config_results)
-        assess_keypoint(rank, v, r)
-        acc, prec, rob = r.get_full_metric()
+        kr = KptResults(config_results)
+        assess_keypoint(rank, v, kr)
+        acc, prec, rob = kr.get_full_metric()
         keypoints_acc.append(acc)
         keypoints_prec.append(prec)
         keypoints_rob.append(rob)

@@ -418,6 +418,8 @@ def calculate_results_for_video(rank,case_sample_path, is_to_rectify, config_res
         # Re-start video for assessing the next keypoint
         v.video_restart()
 
+    assert(len(keypoints_acc) == v.n_keypoints)
+
     # Stop video after assessing all the keypoints of that specific video
     v.stop_video()
 

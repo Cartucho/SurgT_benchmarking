@@ -411,18 +411,18 @@ def calculate_results(config, valid_or_test):
     if config_data["is_to_evaluate"]:
         case_paths, _ = utils.get_case_paths_and_links(config_data)
         # Go through each video
-        dataset_acc = []
-        dataset_prec = []
-        dataset_rob = []
+        dataset_acc = [] # TODO: this should be inside the rank class!
+        dataset_prec = [] # TODO: this should be inside the rank class!
+        dataset_rob = [] # TODO: this should be inside the rank class!
         counter = 0 # TODO: remove
         for case_sample_path in case_paths:
             if counter == 11:# TODO: remove
                 acc, prec, rob = calculate_results_for_video(rank,case_sample_path, is_to_rectify, config_results)
                 print("{} Acc:{} Prec:{} Rob:{}".format(case_sample_path, acc, prec, rob))
 
-                dataset_acc.append(acc)
-                dataset_prec.append(prec)
-                dataset_rob.append(rob)
+                dataset_acc.append(acc) # TODO: this should be inside the rank class!
+                dataset_prec.append(prec) # TODO: this should be inside the rank class!
+                dataset_rob.append(rob) # TODO: this should be inside the rank class!
             counter += 1 # TODO: remove
 
     eao = rank.calculate_eao_score()

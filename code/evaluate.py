@@ -35,7 +35,6 @@ class Video:
 
     def video_restart(self):
         self.cap = cv.VideoCapture(self.video_path)
-        self.bbox_counter = 0
         self.frame_counter = -1 # So that the first get_frame() goes to zero
 
 
@@ -44,7 +43,7 @@ class Video:
         self.gt_data = utils.load_yaml_data(gt_data_path)
 
 
-    def get_bbox_gt(self):
+    def get_bbox_gt(self, frame_counter):
         """
             Return two bboxes in format (u, v, width, height)
 
@@ -61,11 +60,10 @@ class Video:
         """
         bbox_1 = None
         bbox_2 = None
-        bbxs = self.gt_data[self.bbox_counter]
+        bbxs = self.gt_data[frame_counter]
         if bbxs is not None:
             bbox_1 = bbxs[0]
             bbox_2 = bbxs[1]
-        self.bbox_counter += 1
         return bbox_1, bbox_2
 
 
@@ -135,9 +133,9 @@ class Video:
             ret, frame = self.cap.read()
             if ret:
                 self.frame_counter += 1
-                return frame
+                return frame, self.frame_counter
         self.cap.release()
-        return None
+        return None, self.frame_counter
 
 
     def stop_video(self):
@@ -306,20 +304,20 @@ def draw_bb_in_frame(im1, im2, bbox1_gt, bbox2_gt, bbox1_p, bbox2_p, thck):
     return im_hstack
 
 
-def assess_bbox(ss, rank, v, r, bbox1_gt, bbox1_p, bbox2_gt, bbox2_p):
+def assess_bbox(ss, rank, frame_counter, r, bbox1_gt, bbox1_p, bbox2_gt, bbox2_p):
     # TODO: if hard, set GT to None
     if bbox1_gt is None or bbox2_gt is None:  # if GT is none, its the end of a ss
         if len(ss.sub_sequence_current) > 0:
             ss.sub_sequence_current.append(ss.accumulate_ss_accuracy)  # appends the final accuracy vector
             ss.accumulate_ss_accuracy = []
-            ss.end_sub_sequence = v.frame_counter  # frame end of ss
+            ss.end_sub_sequence = frame_counter  # frame end of ss
             bias = 0  # start at end frame of previous vector
             for ss_tmp in ss.sub_sequence_current:
                 pad_req = ss.end_sub_sequence-ss.start_sub_sequence-len(ss_tmp)-bias  # length of padding req
                 rank.append_padded_vector(ss_tmp + [0.]*pad_req)  # padding and appending to list
                 bias += len(ss_tmp)
             ss.sub_sequence_current = []
-        ss.start_sub_sequence = v.frame_counter + 1
+        ss.start_sub_sequence = frame_counter + 1
             
     reset_flag, accuracy_value = r.assess_bbox_accuracy(bbox1_gt, bbox1_p, bbox2_gt, bbox2_p)
     if reset_flag:
@@ -345,11 +343,11 @@ def assess_keypoint(rank, v, r):
     # Use video and load a specific key point
     while v.cap.isOpened():
         # Get data of new frame
-        frame = v.get_frame()
+        frame, frame_counter = v.get_frame()
         if frame is None:
             break
         im1, im2 = v.split_frame(frame)
-        bbox1_gt, bbox2_gt = v.get_bbox_gt()
+        bbox1_gt, bbox2_gt = v.get_bbox_gt(frame_counter)
 
         if t is None:
             # Initialise or re-initialize the tracker
@@ -360,7 +358,7 @@ def assess_keypoint(rank, v, r):
             # Update the tracker
             bbox1_p, bbox2_p = t.tracker_update(im1, im2)
             # Compute metrics for video and keep track of sub-sequences
-            reset_flag = assess_bbox(ss, rank, v, r, bbox1_gt, bbox1_p, bbox2_gt, bbox2_p)
+            reset_flag = assess_bbox(ss, rank, frame_counter, r, bbox1_gt, bbox1_p, bbox2_gt, bbox2_p)
             if reset_flag:
                 # If the tracker failed then we need to set it to None so that we re-initialize
                 t = None
@@ -374,7 +372,7 @@ def assess_keypoint(rank, v, r):
         cv.waitKey(1)
 
     # Do one last to finish the sub-sequences without changing the results
-    assess_bbox(ss, rank, v, r, None, None, None, None)
+    assess_bbox(ss, rank, frame_counter, r, None, None, None, None)
 
 
 def calculate_results_for_video(rank,case_sample_path, is_to_rectify, config_results):

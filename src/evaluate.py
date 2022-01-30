@@ -1,6 +1,6 @@
 import os
-from code import utils
-from code.method import Tracker
+from src import utils
+from src.sample_tracker import Tracker
 
 import cv2 as cv
 import numpy as np

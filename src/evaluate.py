@@ -201,10 +201,9 @@ class SSeq:
 
 
 class KptResults:
-    def __init__(self, config):
-        self.dir = config["dir"]
-        self.n_misses_allowed = config["n_misses_allowed"]
-        self.iou_threshold = config["iou_threshold"]
+    def __init__(self, n_misses_allowed, iou_threshold):
+        self.n_misses_allowed = n_misses_allowed
+        self.iou_threshold = iou_threshold
         self.accuracy_list = []
         self.precision_list = []
         self.robustness_frames_counter = 0
@@ -407,7 +406,8 @@ def calculate_results_for_video(rank,case_sample_path, is_to_rectify, config_res
     for ind_kpt in range(v.n_keypoints):
         # Load ground-truth for the specific keypoint being tested
         v.load_ground_truth(ind_kpt)
-        kr = KptResults(config_results)
+        kr = KptResults(config_results["n_misses_allowed"],
+                        config_results["iou_threshold"])
         ss = SSeq()
         assess_keypoint(v, kr, ss)
         acc, prec, rob = kr.get_full_metric()

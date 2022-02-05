@@ -60,11 +60,13 @@ class Video:
         """
         bbox_1 = None
         bbox_2 = None
+        is_difficult = None
         bbxs = self.gt_data[frame_counter]
         if bbxs is not None:
-            bbox_1 = bbxs[0]
-            bbox_2 = bbxs[1]
-        return bbox_1, bbox_2
+            bbox_1 = bbxs[0][0]
+            bbox_2 = bbxs[0][1]
+            is_difficult = bbxs[1]
+        return bbox_1, bbox_2, is_difficult
 
 
     def load_calib_data(self):
@@ -159,9 +161,21 @@ class Statistics:
 
 class EAORank:
     def __init__(self, config):
-        self.N_high = config["N_high"]
-        self.N_low = config["N_low"]
+        self.N_high = 0 #config["N_high"]
+        self.N_low = 200 #config["N_low"]
         self.all_padded_ss_list = []
+        """
+         If we decide to use them:
+         TODO: self.N_high and self.N_low
+              should be calculated using all the ss
+              in all_padded_ss_list.
+
+              Lists in the end finishing in is_difficult should not affecgt
+              e.g.:
+               1, 1, is_difficult, 1, 0.9, is_difficult, is_difficult
+
+                   should be a sequence of size 5, and not 7!
+        """
 
 
     def append_ss_list(self, padded_list):
@@ -172,20 +186,24 @@ class EAORank:
         self.eao_curve = []
         max_ss_length = max(len(ss) for ss in self.all_padded_ss_list)
         for i in range(max_ss_length):
+            score = 0
             ss_sum = 0.0
             ss_counter = 0
             for ss in self.all_padded_ss_list:
                 if len(ss) > i:
-                    # TODO future: continue if flagged as difficult "d"
+                    if ss[i] == "is_difficult":
+                        continue
                     ss_sum += ss[i]
                     ss_counter += 1
-            score = ss_sum / ss_counter
+            if ss_counter == 0:
+                # No more sequences
+                break
             self.eao_curve.append(score)
 
 
     def calculate_eao_score(self):
         self.calculate_eao_curve()
-        return np.mean(self.eao_curve)#[self.N_low:self.N_high + 1]) TODO: change N_low and N_high values in config!
+        return np.mean(self.eao_curve)#[self.N_low:self.N_high + 1]) #TODO: change N_low and N_high values in config!
         
 
 class SSeq:
@@ -304,20 +322,22 @@ def get_bbox_corners(bbox):
     return top_left, bot_right
 
 
-def draw_bb_in_frame(im1, im2, bbox1_gt, bbox2_gt, bbox1_p, bbox2_p, thck):
+def draw_bb_in_frame(im1, im2, bbox1_gt, bbox1_p, bbox2_gt, bbox2_p, is_difficult, thck):
     color_gt = (0, 255, 0)  # Green
     color_p = (255, 0, 0)  # Blue
-    # Image left
+    if is_difficult:
+        color_gt = (0, 215, 255) # Orange
+    # Ground-truth
     if bbox1_gt is not None:
         top_left, bot_right = get_bbox_corners(bbox1_gt)
         im1 = cv.rectangle(im1, top_left, bot_right, color_gt, thck)
-    if bbox1_p is not None:
-        top_left, bot_right = get_bbox_corners(bbox1_p)
-        im1 = cv.rectangle(im1, top_left, bot_right, color_p, thck)
-    # Image right
     if bbox2_gt is not None:
         top_left, bot_right = get_bbox_corners(bbox2_gt)
         im2 = cv.rectangle(im2, top_left, bot_right, color_gt, thck)
+    # Predicted
+    if bbox1_p is not None:
+        top_left, bot_right = get_bbox_corners(bbox1_p)
+        im1 = cv.rectangle(im1, top_left, bot_right, color_p, thck)
     if bbox2_p is not None:
         top_left, bot_right = get_bbox_corners(bbox2_p)
         im2 = cv.rectangle(im2, top_left, bot_right, color_p, thck)
@@ -325,8 +345,12 @@ def draw_bb_in_frame(im1, im2, bbox1_gt, bbox2_gt, bbox1_p, bbox2_p, thck):
     return im_hstack
 
 
-def assess_bbox(ss, frame_counter, kr, bbox1_gt, bbox1_p, bbox2_gt, bbox2_p):
-    # TODO: if hard, set GT to None
+def assess_bbox(ss, frame_counter, kr, bbox1_gt, bbox1_p, bbox2_gt, bbox2_p, is_difficult):
+    if is_difficult:
+        # If `is_difficult` then the metrics are not be affected
+        ss.accumulate_ss_accuracy.append("is_difficult")
+        return False
+
     if bbox1_gt is None or bbox2_gt is None:  # if GT is none, its the end of a ss
         if len(ss.sub_sequence_current) > 0:
             ss.sub_sequence_current.append(ss.accumulate_ss_accuracy)  # appends the final accuracy vector
@@ -335,11 +359,11 @@ def assess_bbox(ss, frame_counter, kr, bbox1_gt, bbox1_p, bbox2_gt, bbox2_p):
             bias = 0  # start at end frame of previous vector
             for ss_tmp in ss.sub_sequence_current:
                 pad_req = ss.end_sub_sequence-ss.start_sub_sequence-len(ss_tmp)-bias  # length of padding req
-                ss.append_padded_vector(ss_tmp + [0.]*pad_req)  # padding and appending to list
+                ss.append_padded_vector(ss_tmp + [0.] * pad_req)  # padding and appending to list
                 bias += len(ss_tmp)
             ss.sub_sequence_current = []
         ss.start_sub_sequence = frame_counter + 1
-            
+
     reset_flag, accuracy_value = kr.assess_bbox_accuracy(bbox1_gt, bbox1_p, bbox2_gt, bbox2_p)
     if reset_flag:
         ss.sub_sequence_current.append(ss.accumulate_ss_accuracy)
@@ -365,32 +389,42 @@ def assess_keypoint(v, kr, ss):
         if frame is None:
             break
         im1, im2 = v.split_frame(frame)
-        bbox1_gt, bbox2_gt = v.get_bbox_gt(frame_counter)
+        bbox1_gt, bbox2_gt, is_difficult = v.get_bbox_gt(frame_counter)
 
         if t is None:
             # Initialise or re-initialize the tracker
             if bbox1_gt is not None and bbox2_gt is not None:
                 # We can only initialize if we have ground-truth bboxes
-                t = Tracker(im1, im2, bbox1_gt, bbox2_gt)
+                if not is_difficult:
+                    # Only if bbox is not difficult to track
+                    t = Tracker(im1, im2, bbox1_gt, bbox2_gt)
         else:
             # Update the tracker
             bbox1_p, bbox2_p = t.tracker_update(im1, im2)
             # Compute metrics for video and keep track of sub-sequences
-            reset_flag = assess_bbox(ss, frame_counter, kr, bbox1_gt, bbox1_p, bbox2_gt, bbox2_p)
+            reset_flag = assess_bbox(ss,
+                                     frame_counter,
+                                     kr,
+                                     bbox1_gt, bbox1_p,
+                                     bbox2_gt, bbox2_p,
+                                     is_difficult)
             if reset_flag:
                 # If the tracker failed then we need to set it to None so that we re-initialize
                 t = None
-                reset_flag = False
                 # In visual animation, we hide the last predicted bboxs when the tracker fails
                 bbox1_p, bbox2_p = None, None
 
         # Show animation of the tracker
-        frame_aug = draw_bb_in_frame(im1, im2, bbox1_gt, bbox2_gt, bbox1_p, bbox2_p, thick)
+        frame_aug = draw_bb_in_frame(im1, im2,
+                                     bbox1_gt, bbox1_p,
+                                     bbox2_gt, bbox2_p,
+                                     is_difficult,
+                                     thick)
         cv.imshow(window_name, frame_aug)
         cv.waitKey(1)
 
     # Do one last to finish the sub-sequences without changing the results
-    assess_bbox(ss, frame_counter, kr, None, None, None, None)
+    assess_bbox(ss, frame_counter, kr, None, None, None, None, False)
 
 
 def calculate_results_for_video(rank,case_sample_path, is_to_rectify, config_results):

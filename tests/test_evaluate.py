@@ -40,6 +40,16 @@ def test_robustness():
     assert(rob == 0.5) # 25 / (40 + 10)
 
 
+def test_accuracy():
+    n_misses_allowed = 10
+    iou_threshold = 0.1
+    kr = KptResults(n_misses_allowed, iou_threshold)
+    kr.iou_list = [1.0, 1.0, 0.5, 0.5]
+    kr.n_visible = 10
+    acc = kr.get_accuracy_score()
+    assert(acc == 0.3) # 3. / 10
+
+
 def test_EAO_Rank():
     # Empty sequence
     rank = EAO_Rank()

@@ -339,10 +339,10 @@ def get_bbox_corners(bbox):
 
 
 def draw_bb_in_frame(im1, im2, bbox1_gt, bbox1_p, bbox2_gt, bbox2_p, is_difficult, thck):
-    color_gt = (0, 255, 0)  # Green
-    color_p = (255, 0, 0)  # Blue
+    color_gt = (0, 255, 0)  # Green (If the ground-truth is used to assess)
+    color_p = (255, 0, 0)  # Blue (Prediction always shown in Blue)
     if is_difficult:
-        color_gt = (0, 215, 255) # Orange
+        color_gt = (0, 215, 255) # Orange (If the ground-truth is NOT used to assess)
     # Ground-truth
     if bbox1_gt is not None:
         top_left, bot_right = get_bbox_corners(bbox1_gt)

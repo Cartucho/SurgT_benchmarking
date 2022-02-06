@@ -147,21 +147,18 @@ class Video:
 class Statistics:
     def __init__(self):
         self.acc_list = []
-        self.prec_list = []
         self.rob_list = []
 
 
-    def append_stats(self, acc, prec, rob):
+    def append_stats(self, acc, rob):
         self.acc_list.append(acc)
-        self.prec_list.append(prec)
         self.rob_list.append(rob)
 
 
     def get_stats_mean(self):
         mean_acc = np.mean(self.acc_list)
-        mean_prec = np.mean(self.prec_list)
         mean_rob = np.mean(self.rob_list)
-        return mean_acc, mean_prec, mean_rob
+        return mean_acc, mean_rob
 
 
 class EAO_Rank:
@@ -230,7 +227,6 @@ class KptResults:
         self.n_misses_allowed = n_misses_allowed
         self.iou_threshold = iou_threshold
         self.accuracy_list = []
-        self.precision_list = []
         self.robustness_frames_counter = 0
         self.n_excessive_frames = 0
         self.n_visible = 0
@@ -264,9 +260,6 @@ class KptResults:
 
         if left_accuracy > self.iou_threshold and right_accuracy > self.iou_threshold:
             self.robustness_frames_counter += 1
-            left_precision = self.get_precision_centroid_frame(bbox1_gt, bbox1_p)
-            right_precision = self.get_precision_centroid_frame(bbox2_gt, bbox2_p)
-            self.precision_list.append([left_precision, right_precision])
             self.reset_n_successive_misses()
             return False, np.mean([left_accuracy, right_accuracy])
 
@@ -301,15 +294,6 @@ class KptResults:
         assert(iou >= 0.0 and iou <= 1.0)
         return iou
 
-    def get_precision_centroid_frame(self, bbox_gt, bbox_p):
-        cp_gt = np.array([bbox_gt[0]+bbox_gt[2]/2., bbox_gt[1]+bbox_gt[3]/2.])
-        cp_p = np.array([bbox_p[0]+bbox_p[2]/2., bbox_p[1]+bbox_p[3]/2.])
-        diag_gt = np.sqrt(np.sum(bbox_gt[2]**2+bbox_gt[3]**2))/2 # /2 because maximum overlap len
-        diag_p = np.sqrt(np.sum(bbox_p[2]**2+bbox_p[3]**2))/2
-        cp_distance = 1 - np.sqrt(np.sum(np.abs(cp_gt-cp_p)**2))/(diag_gt+diag_p)
-        assert(cp_distance >= 0.0 and cp_distance <= 1.0)
-        return cp_distance
-
 
     def get_robustness_score(self):
         rob = 1.0
@@ -324,13 +308,12 @@ class KptResults:
         """
         Only happens after all frames are processed, end of video for-loop!
 
-        The accuracy and precision scores are calculated as the mean of scores
+        The accuracy and error scores are calculated as the mean of scores
         of both the left and right stereo-cameras.
         """
         acc = np.mean([np.sum(np.array(self.accuracy_list)[:, 0]) / self.n_visible, np.sum(np.array(self.accuracy_list)[:, 1]) / self.n_visible])
-        prec = np.mean([np.sum(np.array(self.precision_list)[:, 0]) / self.n_visible, np.sum(np.array(self.precision_list)[:, 1]) / self.n_visible])
         rob = self.get_robustness_score()
-        return acc, prec, rob
+        return acc, rob
 
 
 
@@ -461,8 +444,8 @@ def calculate_results_for_video(rank, case_sample_path, is_to_rectify, config_re
         ss = SSeq()
         assess_keypoint(v, kr, ss)
         rank.append_ss_list(ss.padded_list)
-        acc, prec, rob = kr.get_full_metric()
-        stats.append_stats(acc, prec, rob)
+        acc, rob = kr.get_full_metric()
+        stats.append_stats(acc, rob)
         # Re-start video for assessing the next keypoint
         v.video_restart()
 
@@ -475,16 +458,16 @@ def calculate_results_for_video(rank, case_sample_path, is_to_rectify, config_re
     return stats.get_stats_mean()
 
 
-def print_results(str_start, acc, prec, rob):
-    print("{} Acc:{:.3f} Prec:{:.3f} Rob:{:.3f}".format(str_start, acc, prec, rob))
+def print_results(str_start, acc, rob):
+    print("{} Acc:{:.3f} Rob:{:.3f}".format(str_start, acc, rob))
 
 
 def calculate_case_statitics(case_id, stats_case, stats_case_all):
-    if case_id != 0:
-        mean_acc, mean_prec, mean_rob = stats_case.get_stats_mean()
-        print_results( "\tCase:{}".format(case_id), mean_acc, mean_prec, mean_rob)
+    if case_id != -1:
+        mean_acc, mean_rob = stats_case.get_stats_mean()
+        print_results( "\tCase:{}".format(case_id), mean_acc, mean_rob)
         # Append them to final statistics
-        stats_case_all.append_stats(mean_acc, mean_prec, mean_rob)
+        stats_case_all.append_stats(mean_acc, mean_rob)
 
     
 def calculate_results(config, valid_or_test):
@@ -493,8 +476,8 @@ def calculate_results(config, valid_or_test):
     config_data = config[valid_or_test]
 
     rank = EAO_Rank()
-    case_id_prev = 0
-    stats_case = None
+    case_id_prev = -1
+    stats_case = Statistics() # For a specific case
     stats_case_all = Statistics() # For ALL cases
 
     if config_data["is_to_evaluate"]:
@@ -503,19 +486,19 @@ def calculate_results(config, valid_or_test):
         # Go through each video
         for cs in case_samples:
             if cs.case_id != case_id_prev:
-                calculate_case_statitics(case_id, stats_case, stats_case_all)
+                calculate_case_statitics(case_id_prev, stats_case, stats_case_all)
                 stats_case = Statistics() # For a specific case
                 case_id_prev = cs.case_id
-            acc, prec, rob = calculate_results_for_video(rank, cs.case_sample_path, is_to_rectify, config_results)
-            print_results("\t\t{}".format(cs.case_sample_path), acc, prec, rob)
-            stats_case.append_stats(acc, prec, rob)
+            acc, rob = calculate_results_for_video(rank, cs.case_sample_path, is_to_rectify, config_results)
+            print_results("\t\t{}".format(cs.case_sample_path), acc, rob)
+            stats_case.append_stats(acc, rob)
         # Calculate LAST case statistics
-        calculate_case_statitics(case_id, stats_case, stats_case_all)
+        calculate_case_statitics(cs.case_id, stats_case, stats_case_all)
 
-        mean_acc, mean_prec, mean_rob = stats_case_all.get_stats_mean()
+        mean_acc, mean_rob = stats_case_all.get_stats_mean()
         print('{} final score:'.format(valid_or_test).upper())
         eao = rank.calculate_eao_score()
-        print_results("\tEAO:{:.3f}".format(eao), mean_acc, mean_prec, mean_rob)
+        print_results("\tEAO:{:.3f}".format(eao), mean_acc, mean_rob)
 
 
 def evaluate_method(config):

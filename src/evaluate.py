@@ -143,20 +143,25 @@ class Video:
     def stop_video(self):
         self.cap.release()
 
+
 class Statistics:
     def __init__(self):
-        self.dataset_acc = []
-        self.dataset_prec = []
-        self.dataset_rob = []
+        self.acc_list = []
+        self.prec_list = []
+        self.rob_list = []
 
-    def append_acc(self, acc):
-        self.dataset_acc.append(acc)
 
-    def append_prec(self, prec):
-        self.dataset_prec.append(prec)
+    def append_stats(self, acc, prec, rob):
+        self.acc_list.append(acc)
+        self.prec_list.append(prec)
+        self.rob_list.append(rob)
 
-    def append_rob(self, rob):
-        self.dataset_rob.append(rob)
+
+    def get_stats_mean(self):
+        mean_acc = np.mean(self.acc_list)
+        mean_prec = np.mean(self.prec_list)
+        mean_rob = np.mean(self.rob_list)
+        return mean_acc, mean_prec, mean_rob
 
 
 class EAO_Rank:
@@ -214,8 +219,10 @@ class SSeq:
         self.accumulate_ss_accuracy = []  # appends the current accuracy score to the current succ track vector
         self.padded_list = []
 
+
     def append_padded_vector(self, padded_vec):
         self.padded_list.append(padded_vec)
+
 
 
 class KptResults:
@@ -441,9 +448,7 @@ def calculate_results_for_video(rank, case_sample_path, is_to_rectify, config_re
     v = Video(case_sample_path, is_to_rectify)
 
     # for when there are multiple keypoints
-    keypoints_acc = []
-    keypoints_prec = []
-    keypoints_rob = []
+    stats = Statistics()
 
     # Iterate through all the keypoints
     for ind_kpt in range(v.n_keypoints):
@@ -453,20 +458,19 @@ def calculate_results_for_video(rank, case_sample_path, is_to_rectify, config_re
                         config_results["iou_threshold"])
         ss = SSeq()
         assess_keypoint(v, kr, ss)
-        acc, prec, rob = kr.get_full_metric()
         rank.append_ss_list(ss.padded_list)
-        keypoints_acc.append(acc)
-        keypoints_prec.append(prec)
-        keypoints_rob.append(rob)
+        acc, prec, rob = kr.get_full_metric()
+        stats.append_stats(acc, prec, rob)
         # Re-start video for assessing the next keypoint
         v.video_restart()
 
-    assert(len(keypoints_acc) == v.n_keypoints)
+    # Check that we have statistics for each of the keypoints
+    assert(len(stats.acc_list) == v.n_keypoints)
 
     # Stop video after assessing all the keypoints of that specific video
     v.stop_video()
 
-    return np.mean(keypoints_acc), np.mean(keypoints_prec), np.mean(keypoints_rob)
+    return stats.get_stats_mean()
 
 
 def calculate_results(config, valid_or_test):
@@ -486,15 +490,12 @@ def calculate_results(config, valid_or_test):
             if counter >= 10:# TODO: remove
                 acc, prec, rob = calculate_results_for_video(rank, case_sample_path, is_to_rectify, config_results)
                 print("{} Acc:{} Prec:{} Rob:{}".format(case_sample_path, acc, prec, rob))
-
-                stats.append_acc(acc)
-                stats.append_prec(prec)
-                stats.append_rob(rob)
+                stats.append_stats(acc, prec, rob)
             counter += 1 # TODO: remove
 
     eao = rank.calculate_eao_score()
-
-    return eao, np.mean(stats.dataset_acc), np.mean(stats.dataset_prec), np.mean(stats.dataset_rob)
+    mean_acc, mean_prec, mean_rob = stats.get_stats_mean()
+    return eao, mean_acc, mean_prec, mean_rob
 
 
 def evaluate_method(config):

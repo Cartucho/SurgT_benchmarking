@@ -148,17 +148,23 @@ class Statistics:
     def __init__(self):
         self.acc_list = []
         self.rob_list = []
+        self.err_2d_list = []
+        self.err_3d_list = []
 
 
-    def append_stats(self, acc, rob):
+    def append_stats(self, acc, rob, err_2d, err_3d):
         self.acc_list.append(acc)
         self.rob_list.append(rob)
+        self.err_2d_list.append(err_2d)
+        self.err_3d_list.append(err_3d)
 
 
     def get_stats_mean(self):
         mean_acc = np.mean(self.acc_list)
         mean_rob = np.mean(self.rob_list)
-        return mean_acc, mean_rob
+        mean_err_2d = np.mean(self.err_2d_list)
+        mean_err_3d = np.mean(self.err_3d_list)
+        return mean_acc, mean_rob, mean_err_2d, mean_err_3d
 
 
 class EAO_Rank:
@@ -223,10 +229,13 @@ class SSeq:
 
 
 class KptResults:
-    def __init__(self, n_misses_allowed, iou_threshold):
+    def __init__(self, n_misses_allowed, iou_threshold, Q=None):
         self.n_misses_allowed = n_misses_allowed
         self.iou_threshold = iou_threshold
+        self.Q = Q
         self.iou_list = []
+        self.err_2d_list = []
+        self.err_3d_list = []
         self.robustness_frames_counter = 0
         self.n_excessive_frames = 0
         self.n_visible = 0
@@ -259,6 +268,7 @@ class KptResults:
         self.iou_list.append(iou)
         if iou1 > self.iou_threshold and iou2 > self.iou_threshold:
             self.robustness_frames_counter += 1
+            self.calculate_l2_norm_errors(bbox1_gt, bbox1_p, bbox2_gt, bbox2_p)
             self.reset_n_successive_misses()
         # Otherwise it missed
         self.n_misses_successive += 1
@@ -268,6 +278,52 @@ class KptResults:
             self.reset_n_successive_misses()
             return True, iou
         return False, iou
+
+
+    def get_bbox_centr(self, bbox):
+        centr_u = int(bbox[0] + (bbox[2] / 2))
+        centr_v = int(bbox[1] + (bbox[3] / 2))
+        return np.array([centr_u, centr_v])
+
+
+    def get_l2_norm(self, centr_gt, centr_p):
+        return np.linalg.norm(centr_gt - centr_p)
+
+
+    def get_3d_pt(self, u, v, disp):
+        assert(disp > 0)
+        pt_2d = np.array([[u],
+                          [v],
+                          [disp],
+                          [1.0]
+                          ], dtype=np.float32)
+        pt_3d = np.matmul(self.Q, pt_2d)
+        pt_3d /= pt_3d[3, 0]
+        return pt_3d
+
+
+    def calculate_l2_norm_errors(self, bbox1_gt, bbox1_p, bbox2_gt, bbox2_p):
+        centr_2d_gt = self.get_bbox_centr(bbox1_gt)
+        centr_2d_p = self.get_bbox_centr(bbox1_p)
+        centr_2d_gt = self.get_bbox_centr(bbox2_gt)
+        centr_2d_p = self.get_bbox_centr(bbox2_p)
+        # Get 2D error [pixels]
+        err_2d_1 = self.get_l2_norm(centr_2d_gt, centr_2d_p)
+        err_2d_2 = self.get_l2_norm(centr_2d_gt, centr_2d_p)
+        err_2d = np.mean([err_2d_1, err_2d_2])
+        self.err_2d_list.append(err_2d)
+        # Get 3D error [mm]
+        disp_p = centr_2d_p[0] - centr_2d_p[0]
+        disp_g = centr_2d_gt[0] - centr_2d_gt[0]
+        if disp_p > 0 and disp_g > 0:
+            """
+             I am assuming that `centr_bbox1_p` and `centr_bbox2_p` have the same `v`,
+             which should be the case for a stereo Tracker that works with rectified images as input. 
+            """
+            centr_3d_p = self.get_3d_pt(disp_p, centr_2d_p[0], centr_2d_p[1])
+            centr_3d_gt = self.get_3d_pt(disp_gt, centr_2d_gt[0], centr_2d_gt[1])
+            err_3d = self.get_l2_norm(centr_3d_p, centr_3d_gt)
+            self.err_3d_list.append(err_3d)
 
 
     def get_iou(self, bbox_gt, bbox_p):
@@ -314,7 +370,9 @@ class KptResults:
         """
         acc = self.get_accuracy_score()
         rob = self.get_robustness_score()
-        return acc, rob
+        err_2d = np.mean(self.err_2d_list)
+        err_3d = np.mean(self.err_2d_list)
+        return acc, rob, err_2d, err_3d
 
 
 
@@ -441,12 +499,13 @@ def calculate_results_for_video(rank, case_sample_path, is_to_rectify, config_re
         # Load ground-truth for the specific keypoint being tested
         v.load_ground_truth(ind_kpt)
         kr = KptResults(config_results["n_misses_allowed"],
-                        config_results["iou_threshold"])
+                        config_results["iou_threshold"],
+                        v.Q)
         ss = SSeq()
         assess_keypoint(v, kr, ss)
         rank.append_ss_list(ss.padded_list)
-        acc, rob = kr.get_full_metric()
-        stats.append_stats(acc, rob)
+        acc, rob, err_2d, err_3d = kr.get_full_metric()
+        stats.append_stats(acc, rob, err_2d, err_3d)
         # Re-start video for assessing the next keypoint
         v.video_restart()
 
@@ -459,16 +518,20 @@ def calculate_results_for_video(rank, case_sample_path, is_to_rectify, config_re
     return stats.get_stats_mean()
 
 
-def print_results(str_start, acc, rob):
-    print("{} Acc:{:.3f} Rob:{:.3f}".format(str_start, acc, rob))
+def print_results(str_start, acc, rob, err_2d, err_3d):
+    print("{} Acc:{:.3f} Rob:{:.3f} Err_2D: {:.1f} [pixels] Err_3D: {:.2f} [mm]".format(str_start,
+                                                                                  acc,
+                                                                                  rob,
+                                                                                  err_2d,
+                                                                                  err_3d))
 
 
 def calculate_case_statitics(case_id, stats_case, stats_case_all):
     if case_id != -1:
-        mean_acc, mean_rob = stats_case.get_stats_mean()
-        print_results( "\tCase:{}".format(case_id), mean_acc, mean_rob)
+        mean_acc, mean_rob, mean_err_2d, mean_err_3d = stats_case.get_stats_mean()
+        print_results( "\tCase:{}".format(case_id), mean_acc, mean_rob, mean_err_2d, mean_err_3d)
         # Append them to final statistics
-        stats_case_all.append_stats(mean_acc, mean_rob)
+        stats_case_all.append_stats(mean_acc, mean_rob, mean_err_2d, mean_err_3d)
 
     
 def calculate_results(config, valid_or_test):
@@ -490,16 +553,19 @@ def calculate_results(config, valid_or_test):
                 calculate_case_statitics(case_id_prev, stats_case, stats_case_all)
                 stats_case = Statistics() # For a specific case
                 case_id_prev = cs.case_id
-            acc, rob = calculate_results_for_video(rank, cs.case_sample_path, is_to_rectify, config_results)
-            print_results("\t\t{}".format(cs.case_sample_path), acc, rob)
-            stats_case.append_stats(acc, rob)
+            acc, rob, err_2d, err_3d = calculate_results_for_video(rank,
+                                                                   cs.case_sample_path,
+                                                                   is_to_rectify,
+                                                                   config_results)
+            print_results("\t\t{}".format(cs.case_sample_path), acc, rob, err_2d, err_3d)
+            stats_case.append_stats(acc, rob, err_2d, err_3d)
         # Calculate statistics of the last case, at the end of for-loop
         calculate_case_statitics(cs.case_id, stats_case, stats_case_all)
 
-        mean_acc, mean_rob = stats_case_all.get_stats_mean()
+        mean_acc, mean_rob, mean_err_2d, mean_err_3d = stats_case_all.get_stats_mean()
         print('{} final score:'.format(valid_or_test).upper())
         eao = rank.calculate_eao_score()
-        print_results("\tEAO:{:.3f}".format(eao), mean_acc, mean_rob)
+        print_results("\tEAO:{:.3f}".format(eao), mean_acc, mean_rob, mean_err_2d, mean_err_3d)
 
 
 def evaluate_method(config):

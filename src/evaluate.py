@@ -180,10 +180,20 @@ class EAO_Rank:
         self.all_padded_ss_list += padded_list
 
 
+    def update_max_ss_length(self):
+        self.max_ss_len = 0
+        for ss in self.all_padded_ss_list:
+            if ss:
+                # If list not empty
+                len_ss = len(ss)
+                if len_ss > self.max_ss_len:
+                    self.max_ss_len = len_ss
+        
+
     def calculate_eao_curve(self):
         self.eao_curve = []
-        max_ss_length = max(len(ss) for ss in self.all_padded_ss_list)
-        for i in range(max_ss_length):
+        self.update_max_ss_length()
+        for i in range(self.max_ss_len):
             score = 0
             ss_sum = 0.0
             ss_counter = 0
@@ -201,6 +211,9 @@ class EAO_Rank:
 
     def calculate_eao_score(self):
         self.calculate_eao_curve()
+        if not self.eao_curve:
+            # If empty list
+            return 0.0
         return np.mean(self.eao_curve)#[self.N_low:self.N_high + 1]) #TODO: change N_low and N_high values in config!
         
 
@@ -425,7 +438,7 @@ def assess_keypoint(v, kr, ss):
     assess_bbox(ss, frame_counter, kr, None, None, None, None, False)
 
 
-def calculate_results_for_video(rank,case_sample_path, is_to_rectify, config_results):
+def calculate_results_for_video(rank, case_sample_path, is_to_rectify, config_results):
     # Load video
     v = Video(case_sample_path, is_to_rectify)
 
@@ -473,7 +486,7 @@ def calculate_results(config, valid_or_test):
         counter = 0  # TODO: remove
         for case_sample_path in case_paths:
             if counter >= 10:# TODO: remove
-                acc, prec, rob = calculate_results_for_video(rank,case_sample_path, is_to_rectify, config_results)
+                acc, prec, rob = calculate_results_for_video(rank, case_sample_path, is_to_rectify, config_results)
                 print("{} Acc:{} Prec:{} Rob:{}".format(case_sample_path, acc, prec, rob))
 
                 stats.append_acc(acc)

@@ -35,9 +35,9 @@ def test_robustness():
     kr = KptResults(n_misses_allowed, iou_threshold)
     kr.robustness_frames_counter = 25
     kr.n_visible = 40
-    kr.excessive_frames_counter = 10
+    kr.n_excessive_frames = 10
     rob = kr.get_robustness_score()
-    assert(rob == 0.5)
+    assert(rob == 0.5) # 25 / (40 + 10)
 
 
 def test_EAO_Rank():

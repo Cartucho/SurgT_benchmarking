@@ -225,7 +225,7 @@ class KptResults:
         self.accuracy_list = []
         self.precision_list = []
         self.robustness_frames_counter = 0
-        self.excessive_frames_counter = 0
+        self.n_excessive_frames = 0
         self.n_visible = 0
         self.n_misses_successive = 0
 
@@ -242,7 +242,7 @@ class KptResults:
             # collect in here
             if bbox1_p is not None or bbox2_p is not None:
                 # If the tracker made a prediction when the target is not visible
-                self.excessive_frames_counter += 1
+                self.n_excessive_frames += 1
             return False, None
 
         self.n_visible += 1
@@ -306,7 +306,7 @@ class KptResults:
 
     def get_robustness_score(self):
         rob = 1.0
-        denominator = self.n_visible + self.excessive_frames_counter
+        denominator = self.n_visible + self.n_excessive_frames
         if denominator > 0:
             rob = self.robustness_frames_counter / denominator
         assert(rob >= 0.0 and rob <= 1.0)

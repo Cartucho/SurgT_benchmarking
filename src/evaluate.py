@@ -322,13 +322,15 @@ class KptResults:
 
     def get_full_metric(self):
         """
-        Only happens after all frames are processed, end of video for loop!
+        Only happens after all frames are processed, end of video for-loop!
+
+        The accuracy and precision scores are calculated as the mean of scores
+        of both the left and right stereo-cameras.
         """
-        # HOW SHOULD WE SEPARATE LEFT AND RIGHT
         acc = np.mean([np.sum(np.array(self.accuracy_list)[:, 0]) / self.n_visible, np.sum(np.array(self.accuracy_list)[:, 1]) / self.n_visible])
         prec = np.mean([np.sum(np.array(self.precision_list)[:, 0]) / self.n_visible, np.sum(np.array(self.precision_list)[:, 1]) / self.n_visible])
         rob = self.get_robustness_score()
-        return acc, prec, rob # acc, prec, rob
+        return acc, prec, rob
 
 
 
@@ -473,37 +475,49 @@ def calculate_results_for_video(rank, case_sample_path, is_to_rectify, config_re
     return stats.get_stats_mean()
 
 
-def calculate_results(config, valid_or_test):
+def print_results(str_start, acc, prec, rob):
+    print("{} Acc:{:.3f} Prec:{:.3f} Rob:{:.3f}".format(str_start, acc, prec, rob))
 
+
+def calculate_case_statitics(case_id, stats_case, stats_case_all):
+    if case_id != 0:
+        mean_acc, mean_prec, mean_rob = stats_case.get_stats_mean()
+        print_results( "\tCase:{}".format(case_id), mean_acc, mean_prec, mean_rob)
+        # Append them to final statistics
+        stats_case_all.append_stats(mean_acc, mean_prec, mean_rob)
+
+    
+def calculate_results(config, valid_or_test):
     config_results = config["results"]
     is_to_rectify = config["is_to_rectify"]
     config_data = config[valid_or_test]
 
     rank = EAO_Rank()
-    stats = Statistics()
+    case_id_prev = 0
+    stats_case = None
+    stats_case_all = Statistics() # For ALL cases
 
     if config_data["is_to_evaluate"]:
-        case_paths, _ = utils.get_case_paths_and_links(config_data)
+        print('{} dataset'.format(valid_or_test).upper())
+        case_samples = utils.get_case_samples(config_data)
         # Go through each video
-        counter = 0  # TODO: remove
-        for case_sample_path in case_paths:
-            if counter >= 10:# TODO: remove
-                acc, prec, rob = calculate_results_for_video(rank, case_sample_path, is_to_rectify, config_results)
-                print("{} Acc:{} Prec:{} Rob:{}".format(case_sample_path, acc, prec, rob))
-                stats.append_stats(acc, prec, rob)
-            counter += 1 # TODO: remove
+        for cs in case_samples:
+            if cs.case_id != case_id_prev:
+                calculate_case_statitics(case_id, stats_case, stats_case_all)
+                stats_case = Statistics() # For a specific case
+                case_id_prev = cs.case_id
+            acc, prec, rob = calculate_results_for_video(rank, cs.case_sample_path, is_to_rectify, config_results)
+            print_results("\t\t{}".format(cs.case_sample_path), acc, prec, rob)
+            stats_case.append_stats(acc, prec, rob)
+        # Calculate LAST case statistics
+        calculate_case_statitics(case_id, stats_case, stats_case_all)
 
-    eao = rank.calculate_eao_score()
-    mean_acc, mean_prec, mean_rob = stats.get_stats_mean()
-    return eao, mean_acc, mean_prec, mean_rob
+        mean_acc, mean_prec, mean_rob = stats_case_all.get_stats_mean()
+        print('{} final score:'.format(valid_or_test).upper())
+        eao = rank.calculate_eao_score()
+        print_results("\tEAO:{:.3f}".format(eao), mean_acc, mean_prec, mean_rob)
 
 
 def evaluate_method(config):
-
-    print('VALIDATION DATASET')
-    eao, acc, prec, rob = calculate_results(config, "validation")
-    print('VALIDATION FINAL SCORE')
-    print("EAO:{} Accuracy:{} Precision:{} Roustness:{}".format(eao, acc, prec, rob))
-
-    #print('TEST DATASET')
-    #calculate_results(config, "test")
+    calculate_results(config, "validation")
+    calculate_results(config, "test")

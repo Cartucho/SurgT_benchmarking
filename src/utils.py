@@ -3,6 +3,24 @@ import yaml
 import dload
 
 
+class CaseSample:
+    def __init__(self, case_id, case_sample_path, case_sample_links):
+        self.case_id = case_id
+        self.case_sample_path = case_sample_path
+        self.case_sample_links = case_sample_links
+
+    def download_case_sample_data(self):
+        print("\t{}".format(self.case_sample_path))
+        make_dir_if_needed(self.case_sample_path)
+        for file_name, file_link in self.case_sample_links.items():
+            file_path = os.path.join(self.case_sample_path, file_name)
+            if os.path.isfile(file_path):
+                print("\t\t{}: CHECK".format(file_path))
+            else:
+                print("\t\t{}: DOWNLOADING...".format(file_path))
+                dload.save(file_link, file_path)
+
+
 def is_path_file(string):
     if os.path.isfile(string):
         return string
@@ -26,39 +44,26 @@ def make_dir_if_needed(dir_path):
         os.makedirs(dir_path)
 
 
-def get_case_paths_and_links(config_data):
+def get_case_samples(config_data):
     path = os.path.join(config_data["dir"], config_data["subdir"])
-    case_paths = []
-    case_links = []
+    case_samples = []
     # Go through each of the cases
-    for case_name, case_data in config_data["cases"].items():
+    for case_id, (case_name, case_data) in enumerate(config_data["cases"].items()):
         path_case = os.path.join(path, case_name)
         # Go through each of the samples of each case
         for sample_number, sample_links in case_data.items():
             path_case_sample = os.path.join(path_case, sample_number)
-            case_paths.append(path_case_sample)
-            case_links.append(sample_links)
-    return case_paths, case_links
-
-
-def download_case(case_paths, case_links):
-    for case_sample_path, case_sample_links in zip(case_paths, case_links):
-        print("\t{}".format(case_sample_path))
-        make_dir_if_needed(case_sample_path)
-        for file_name, file_link in case_sample_links.items():
-            file_path = os.path.join(case_sample_path, file_name)
-            if os.path.isfile(file_path):
-                print("\t\t{}: CHECK".format(file_path))
-            else:
-                print("\t\t{}: DOWNLOADING...".format(file_path))
-                dload.save(file_link, file_path)
+            cs = CaseSample(case_id + 1, path_case_sample, sample_links) # + 1 to start in case_1
+            case_samples.append(cs)
+    return case_samples
 
 
 def download_folder(config_data):
     if config_data["is_to_download"]:
         print("DOWNLOAD: Checking `{}` data:".format(config_data["subdir"]))
-        case_paths, case_links = get_case_paths_and_links(config_data)
-        download_case(case_paths, case_links)
+        case_samples = get_case_samples(config_data)
+        for cs in case_samples:
+            cs.download_case_sample_data()
 
 
 def download_data(config):

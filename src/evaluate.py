@@ -213,7 +213,7 @@ class SSeq:
         # Initalized once per video
         self.start_sub_sequence = 0  # frame count for the start of every ss
         self.sub_sequence_current = []  # all successful tracking vectors within a sub sequence
-        self.accumulate_ss_accuracy = []  # appends the current accuracy score to the current succ track vector
+        self.accumulate_ss_iou = []  # accumulates the IoU scores of the running tracker
         self.padded_list = []
 
 
@@ -226,7 +226,7 @@ class KptResults:
     def __init__(self, n_misses_allowed, iou_threshold):
         self.n_misses_allowed = n_misses_allowed
         self.iou_threshold = iou_threshold
-        self.accuracy_list = []
+        self.iou_list = []
         self.robustness_frames_counter = 0
         self.n_excessive_frames = 0
         self.n_visible = 0
@@ -237,43 +237,40 @@ class KptResults:
         self.n_misses_successive = 0
 
 
-    def assess_bbox_accuracy(self, bbox1_gt, bbox1_p, bbox2_gt, bbox2_p):
+    def calculate_bbox_metrics(self, bbox1_gt, bbox1_p, bbox2_gt, bbox2_p):
         """
         Check if stereo tracking is a success or not
         """
         if bbox1_gt is None or bbox2_gt is None:
-            # collect in here
             if bbox1_p is not None or bbox2_p is not None:
                 # If the tracker made a prediction when the target is not visible
                 self.n_excessive_frames += 1
             return False, None
-
         self.n_visible += 1
 
-        left_accuracy = 0.0
-        right_accuracy = 0.0
+        iou = 0
+        iou1 = 0
+        iou2 = 0
         if bbox1_p is not None and bbox2_p is not None:
-            left_accuracy = self.get_accuracy_frame(bbox1_gt, bbox1_p)
-            right_accuracy = self.get_accuracy_frame(bbox2_gt, bbox2_p)
-
-        self.accuracy_list.append([left_accuracy, right_accuracy])
-
-        if left_accuracy > self.iou_threshold and right_accuracy > self.iou_threshold:
+            iou1 = self.get_iou(bbox1_gt, bbox1_p)
+            iou2 = self.get_iou(bbox2_gt, bbox2_p)
+            # Use the mean overlap between the two images
+            iou = np.mean([iou1, iou2])
+        self.iou_list.append(iou)
+        if iou1 > self.iou_threshold and iou2 > self.iou_threshold:
             self.robustness_frames_counter += 1
             self.reset_n_successive_misses()
-            return False, np.mean([left_accuracy, right_accuracy])
-
+        # Otherwise it missed
         self.n_misses_successive += 1
         if self.n_misses_successive > self.n_misses_allowed:
-            # Keep only the accuracies before tracking failure
-            del self.accuracy_list[-self.n_misses_successive:]
+            # Keep only the IoUs before tracking failure
+            del self.iou_list[-self.n_misses_successive:]
             self.reset_n_successive_misses()
-            return True, np.mean([left_accuracy, right_accuracy])
-        return False, np.mean([left_accuracy, right_accuracy])
+            return True, iou
+        return False, iou
 
 
-    def get_accuracy_frame(self, bbox_gt, bbox_p):
-        # TODO: here we could have used the function get_bbox_corners(), to get x1 ....
+    def get_iou(self, bbox_gt, bbox_p):
         x1, y1, x2, y2 = [bbox_gt[0], bbox_gt[1], bbox_gt[0]+bbox_gt[2], bbox_gt[1]+bbox_gt[3]]
         x3, y3, x4, y4 = [bbox_p[0], bbox_p[1], bbox_p[0]+bbox_p[2], bbox_p[1]+bbox_p[3]]
         x_inter1 = max(x1, x3)
@@ -295,6 +292,14 @@ class KptResults:
         return iou
 
 
+    def get_accuracy_score(self):
+        acc = 1.0
+        if self.n_visible > 0:
+            acc = np.sum(self.iou_list) / self.n_visible
+        assert(acc >= 0.0 and acc <= 1.0)
+        return acc
+
+
     def get_robustness_score(self):
         rob = 1.0
         denominator = self.n_visible + self.n_excessive_frames
@@ -303,15 +308,11 @@ class KptResults:
         assert(rob >= 0.0 and rob <= 1.0)
         return rob
 
-
     def get_full_metric(self):
         """
         Only happens after all frames are processed, end of video for-loop!
-
-        The accuracy and error scores are calculated as the mean of scores
-        of both the left and right stereo-cameras.
         """
-        acc = np.mean([np.sum(np.array(self.accuracy_list)[:, 0]) / self.n_visible, np.sum(np.array(self.accuracy_list)[:, 1]) / self.n_visible])
+        acc = self.get_accuracy_score()
         rob = self.get_robustness_score()
         return acc, rob
 
@@ -349,13 +350,13 @@ def draw_bb_in_frame(im1, im2, bbox1_gt, bbox1_p, bbox2_gt, bbox2_p, is_difficul
 def assess_bbox(ss, frame_counter, kr, bbox1_gt, bbox1_p, bbox2_gt, bbox2_p, is_difficult):
     if is_difficult:
         # If `is_difficult` then the metrics are not be affected
-        ss.accumulate_ss_accuracy.append("is_difficult")
+        ss.accumulate_ss_iou.append("is_difficult")
         return False
 
     if bbox1_gt is None or bbox2_gt is None:  # if GT is none, its the end of a ss
         if len(ss.sub_sequence_current) > 0:
-            ss.sub_sequence_current.append(ss.accumulate_ss_accuracy)  # appends the final accuracy vector
-            ss.accumulate_ss_accuracy = []
+            ss.sub_sequence_current.append(ss.accumulate_ss_iou)  # appends the final IoU vector
+            ss.accumulate_ss_iou = []
             ss.end_sub_sequence = frame_counter  # frame end of ss
             bias = 0  # start at end frame of previous vector
             for ss_tmp in ss.sub_sequence_current:
@@ -365,13 +366,13 @@ def assess_bbox(ss, frame_counter, kr, bbox1_gt, bbox1_p, bbox2_gt, bbox2_p, is_
             ss.sub_sequence_current = []
         ss.start_sub_sequence = frame_counter + 1
 
-    reset_flag, accuracy_value = kr.assess_bbox_accuracy(bbox1_gt, bbox1_p, bbox2_gt, bbox2_p)
+    reset_flag, iou = kr.calculate_bbox_metrics(bbox1_gt, bbox1_p, bbox2_gt, bbox2_p)
     if reset_flag:
-        ss.sub_sequence_current.append(ss.accumulate_ss_accuracy)
-        ss.accumulate_ss_accuracy = []
+        ss.sub_sequence_current.append(ss.accumulate_ss_iou)
+        ss.accumulate_ss_iou = []
     else:
-        if accuracy_value is not None:
-            ss.accumulate_ss_accuracy.append(accuracy_value)
+        if iou is not None:
+            ss.accumulate_ss_iou.append(iou)
     return reset_flag
 
 
@@ -492,7 +493,7 @@ def calculate_results(config, valid_or_test):
             acc, rob = calculate_results_for_video(rank, cs.case_sample_path, is_to_rectify, config_results)
             print_results("\t\t{}".format(cs.case_sample_path), acc, rob)
             stats_case.append_stats(acc, rob)
-        # Calculate LAST case statistics
+        # Calculate statistics of the last case, at the end of for-loop
         calculate_case_statitics(cs.case_id, stats_case, stats_case_all)
 
         mean_acc, mean_rob = stats_case_all.get_stats_mean()

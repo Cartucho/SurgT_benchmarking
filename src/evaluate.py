@@ -159,10 +159,8 @@ class Statistics:
         self.dataset_rob.append(rob)
 
 
-class EAORank:
-    def __init__(self, config):
-        self.N_high = 0 #config["N_high"]
-        self.N_low = 200 #config["N_low"]
+class EAO_Rank:
+    def __init__(self):
         self.all_padded_ss_list = []
         """
          If we decide to use them:
@@ -466,7 +464,7 @@ def calculate_results(config, valid_or_test):
     is_to_rectify = config["is_to_rectify"]
     config_data = config[valid_or_test]
 
-    rank = EAORank(config_results)
+    rank = EAO_Rank()
     stats = Statistics()
 
     if config_data["is_to_evaluate"]:

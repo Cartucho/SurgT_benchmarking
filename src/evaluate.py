@@ -162,18 +162,6 @@ class Statistics:
 class EAO_Rank:
     def __init__(self):
         self.all_padded_ss_list = []
-        """
-         If we decide to use them:
-         TODO: self.N_high and self.N_low
-              should be calculated using all the ss
-              in all_padded_ss_list.
-
-              Lists in the end finishing in is_difficult should not affecgt
-              e.g.:
-               1, 1, is_difficult, 1, 0.9, is_difficult, is_difficult
-
-                   should be a sequence of size 5, and not 7!
-        """
 
 
     def append_ss_list(self, padded_list):
@@ -215,7 +203,7 @@ class EAO_Rank:
         if not self.eao_curve:
             # If empty list
             return 0.0
-        return np.mean(self.eao_curve)#[self.N_low:self.N_high + 1]) #TODO: change N_low and N_high values in config!
+        return np.mean(self.eao_curve)
         
 
 class SSeq:

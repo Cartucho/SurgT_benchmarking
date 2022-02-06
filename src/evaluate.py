@@ -206,6 +206,7 @@ class EAO_Rank:
             if ss_counter == 0:
                 # No more sequences
                 break
+            score = ss_sum / ss_counter
             self.eao_curve.append(score)
 
 

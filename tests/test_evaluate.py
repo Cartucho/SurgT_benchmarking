@@ -30,10 +30,18 @@ def test_iou():
 
 
 def test_EAO_Rank():
+    # Empty sequence
     rank = EAO_Rank()
-    # Empty sequences
     ss_list = []
     rank.append_ss_list(ss_list)
     eao = rank.calculate_eao_score()
     assert(eao == 0.0)
+    # Single sequence
+    rank = EAO_Rank()
+    ss_list = [[1., 1., 1.]]
+    rank.append_ss_list(ss_list)
+    eao = rank.calculate_eao_score()
+    assert(eao == 1.0)
+
+
     

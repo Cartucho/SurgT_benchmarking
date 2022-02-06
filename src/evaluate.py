@@ -303,6 +303,16 @@ class KptResults:
         assert(cp_distance >= 0.0 and cp_distance <= 1.0)
         return cp_distance
 
+
+    def get_robustness_score(self):
+        rob = 1.0
+        denominator = self.n_visible + self.excessive_frames_counter
+        if denominator > 0:
+            rob = self.robustness_frames_counter / denominator
+        assert(rob >= 0.0 and rob <= 1.0)
+        return rob
+
+
     def get_full_metric(self):
         """
         Only happens after all frames are processed, end of video for loop!
@@ -310,8 +320,7 @@ class KptResults:
         # HOW SHOULD WE SEPARATE LEFT AND RIGHT
         acc = np.mean([np.sum(np.array(self.accuracy_list)[:, 0]) / self.n_visible, np.sum(np.array(self.accuracy_list)[:, 1]) / self.n_visible])
         prec = np.mean([np.sum(np.array(self.precision_list)[:, 0]) / self.n_visible, np.sum(np.array(self.precision_list)[:, 1]) / self.n_visible])
-        rob = self.robustness_frames_counter / (self.n_visible + self.excessive_frames_counter)
-        assert(rob >= 0.0 and rob <= 1.0)
+        rob = self.get_robustness_score()
         return acc, prec, rob # acc, prec, rob
 
 

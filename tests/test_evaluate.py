@@ -29,6 +29,17 @@ def test_iou():
     assert(kr.get_accuracy_frame(bbox_gt, bbox_p) == pytest.approx(0.333, 0.01))
 
 
+def test_robustness():
+    n_misses_allowed = 10
+    iou_threshold = 0.1
+    kr = KptResults(n_misses_allowed, iou_threshold)
+    kr.robustness_frames_counter = 25
+    kr.n_visible = 40
+    kr.excessive_frames_counter = 10
+    rob = kr.get_robustness_score()
+    assert(rob == 0.5)
+
+
 def test_EAO_Rank():
     # Empty sequence
     rank = EAO_Rank()

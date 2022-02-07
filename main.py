@@ -1,6 +1,6 @@
 import argparse
-from code.utils import load_yaml_data, download_data
-from code.evaluate import evaluate_method
+from src.utils import load_yaml_data, download_data
+from src.evaluate import evaluate_method
 
 
 def main():

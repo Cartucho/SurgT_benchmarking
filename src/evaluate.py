@@ -60,12 +60,10 @@ class Video:
         """
         bbox_1 = None
         bbox_2 = None
-        is_difficult = None
-        bbxs = self.gt_data[frame_counter]
+        is_visible_in_both_stereo, is_difficult, bbxs = self.gt_data[frame_counter]
         if bbxs is not None:
-            bbox_1 = bbxs[0][0]
-            bbox_2 = bbxs[0][1]
-            is_difficult = bbxs[1]
+            bbox_1 = bbxs[0]
+            bbox_2 = bbxs[1]
         return bbox_1, bbox_2, is_difficult
 
 

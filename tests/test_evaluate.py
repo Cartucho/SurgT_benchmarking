@@ -103,8 +103,6 @@ def test_EAO_Rank():
     assert(rank.eao_curve[1] == 0.25)
     assert(rank.eao_curve[2] == 0.0)
     assert(rank.eao_curve[3] == 0.7215)
-    eao = rank.calculate_eao_score()
-    assert(eao == 0.333)
     # Test append too
     rank = EAO_Rank()
     ss_list1 = [[1.0, "is_difficult"]]
@@ -113,6 +111,10 @@ def test_EAO_Rank():
     rank.append_ss_list(ss_list1)
     rank.append_ss_list(ss_list2)
     rank.append_ss_list(ss_list3)
-    eao = rank.calculate_eao_score()
-    assert(eao == 0.86)
-    
+    # Test ss_len_max
+    rank = EAO_Rank()
+    ss_list = [[1., 1., 1., "is_difficult", "is_difficult"],
+               [0.]]
+    rank.append_ss_list(ss_list)
+    rank.update_ss_length()
+    assert(rank.ss_len_max == 3) # "is_difficult" at the end does not count

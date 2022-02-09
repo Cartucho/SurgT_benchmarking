@@ -174,20 +174,38 @@ class EAO_Rank:
         self.all_padded_ss_list += padded_list
 
 
-    def update_max_ss_length(self):
-        self.max_ss_len = 0
+    def update_ss_length(self):
+        if not self.all_padded_ss_list:
+            return
+        all_ss_len = []
         for ss in self.all_padded_ss_list:
             if ss:
                 # If list not empty
                 len_ss = len(ss)
-                if len_ss > self.max_ss_len:
-                    self.max_ss_len = len_ss
-        
+                ss_copy = ss.copy()
+                # Do not count with "is_difficult" at the tail of the list
+                for i in range(len_ss):
+                    val = ss_copy.pop()
+                    if val != "is_difficult":
+                        break
+                all_ss_len.append(len_ss - i)
+        all_ss_len = np.array(all_ss_len)
+        self.ss_len_max = np.amax(all_ss_len)
+        ss_len_mean = np.mean(all_ss_len)
+        ss_len_std = np.std(all_ss_len)
+        self.N_min = int(round(ss_len_mean - ss_len_std - 1)) # -1 since we start with 0
+        self.N_max = int(round(ss_len_mean + ss_len_std - 1)) # -1 since we start with 0
+        if self.N_min < 0 or ss_len_std == 0:
+           self.N_min = 0
+        if self.N_max > self.ss_len_max or ss_len_std == 0:
+           self.N_max = self.ss_len_max
+
 
     def calculate_eao_curve(self):
         self.eao_curve = []
-        self.update_max_ss_length()
-        for i in range(self.max_ss_len):
+        self.ss_len_max = 0
+        self.update_ss_length()
+        for i in range(self.ss_len_max):
             score = 0
             ss_sum = 0.0
             ss_counter = 0
@@ -209,7 +227,7 @@ class EAO_Rank:
         if not self.eao_curve:
             # If empty list
             return 0.0
-        return np.mean(self.eao_curve)
+        return np.mean(self.eao_curve[self.N_min:self.N_max])
         
 
 class SSeq:

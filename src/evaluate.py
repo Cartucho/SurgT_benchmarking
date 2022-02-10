@@ -4,6 +4,8 @@ from src.sample_tracker import Tracker
 
 import cv2 as cv
 import numpy as np
+import matplotlib.pyplot as plt
+
 
 class Video:
     def __init__(self, case_sample_path, is_to_rectify):
@@ -166,8 +168,10 @@ class Statistics:
 
 
 class EAO_Rank:
-    def __init__(self):
+    def __init__(self, N_min, N_max):
         self.all_padded_ss_list = []
+        self.N_min = N_min
+        self.N_max = N_max
 
 
     def append_ss_list(self, padded_list):
@@ -191,14 +195,27 @@ class EAO_Rank:
                 all_ss_len.append(len_ss - i)
         all_ss_len = np.array(all_ss_len)
         self.ss_len_max = np.amax(all_ss_len)
+        """ HOWTO Calculate N_min and N_max:
+            Step 1. Uncomment break in `assess_bbox()` to not include reseted ss
+            Step 2. Uncomment the next line
+        """
+        #calculate_N_min_and_N_high(all_ss_len)
+
+
+    def calculate_N_min_and_N_high(self, all_ss_len):
         ss_len_mean = np.mean(all_ss_len)
         ss_len_std = np.std(all_ss_len)
-        self.N_min = int(round(ss_len_mean - ss_len_std - 1)) # -1 since we start with 0
-        self.N_max = int(round(ss_len_mean + ss_len_std - 1)) # -1 since we start with 0
-        if self.N_min < 0 or ss_len_std == 0:
-           self.N_min = 0
-        if self.N_max > self.ss_len_max or ss_len_std == 0:
-           self.N_max = self.ss_len_max
+        N_min = int(round(ss_len_mean - ss_len_std))
+        N_max = int(round(ss_len_mean + ss_len_std))
+        print("Mean:{} Std:{} N_min:{} N_max:{}".format(ss_len_mean,
+                                                        ss_len_std,
+                                                        N_min,
+                                                        N_max))
+        # Show histogram
+        bins = int(self.ss_len_max / 10) # Make bars of 10 frames
+        hist, bin_edges = np.histogram(all_ss_len, bins=bins)
+        _ = plt.hist(all_ss_len, bins=bin_edges)  # arguments are passed to np.histogram
+        plt.show()
 
 
     def calculate_eao_curve(self):
@@ -216,8 +233,9 @@ class EAO_Rank:
                     ss_sum += ss[i]
                     ss_counter += 1
             if ss_counter == 0:
-                # No more sequences
-                break
+                # This happens when all of the ss had the value "is_difficult" for frame i
+                self.eao_curve.append("is_difficult")
+                continue
             score = ss_sum / ss_counter
             self.eao_curve.append(score)
 
@@ -227,7 +245,10 @@ class EAO_Rank:
         if not self.eao_curve:
             # If empty list
             return 0.0
-        return np.mean(self.eao_curve[self.N_min:self.N_max])
+        eao_curve_N = self.eao_curve[self.N_min:self.N_max]
+        # Remove any "is_difficult" score
+        eao_curve_N_filt = [value for value in eao_curve_N if value != "is_difficult"]
+        return np.mean(eao_curve_N_filt)
         
 
 class SSeq:
@@ -437,6 +458,7 @@ def assess_bbox(ss, frame_counter, kr, bbox1_gt, bbox1_p, bbox2_gt, bbox2_p, is_
                 pad_req = ss.end_sub_sequence-ss.start_sub_sequence-len(ss_tmp)-bias  # length of padding req
                 ss.append_padded_vector(ss_tmp + [0.] * pad_req)  # padding and appending to list
                 bias += len(ss_tmp)
+                #break # Add a break if you do NOT want to include the resetted ss
             ss.sub_sequence_current = []
         ss.start_sub_sequence = frame_counter + 1
 
@@ -555,7 +577,7 @@ def calculate_results(config, valid_or_test):
     is_to_rectify = config["is_to_rectify"]
     config_data = config[valid_or_test]
 
-    rank = EAO_Rank()
+    rank = EAO_Rank(config_data["N_min"], config_data["N_max"])
     case_id_prev = -1
     stats_case = Statistics() # For a specific case
     stats_case_all = Statistics() # For ALL cases

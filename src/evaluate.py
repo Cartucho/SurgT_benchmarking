@@ -568,6 +568,7 @@ def calculate_case_statitics(case_id, stats_case, stats_case_all):
     if case_id != -1:
         mean_acc, mean_rob, mean_err_2d, mean_err_3d = stats_case.get_stats_mean()
         print_results( "\tCase:{}".format(case_id), mean_acc, mean_rob, mean_err_2d, mean_err_3d)
+        print("\n")
         # Append them to final statistics
         stats_case_all.append_stats(mean_acc, mean_rob, mean_err_2d, mean_err_3d)
 

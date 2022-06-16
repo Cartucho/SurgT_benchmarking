@@ -197,15 +197,15 @@ class EAO_Rank:
         self.ss_len_max = np.amax(all_ss_len)
         """ HOWTO Calculate N_min and N_max:
             Step 1. Uncomment break in `assess_bbox()` to not include reseted ss
-            Step 2. Uncomment the next line
+            Step 2. Uncomment the next line `self.calculate_N_min_and_N_high`
         """
-        #calculate_N_min_and_N_high(all_ss_len)
+        #self.calculate_N_min_and_N_high(all_ss_len)
 
 
     def calculate_N_min_and_N_high(self, all_ss_len):
         ss_len_mean = np.mean(all_ss_len)
         ss_len_std = np.std(all_ss_len)
-        N_min = int(round(ss_len_mean - ss_len_std))
+        N_min = max(1, int(round(ss_len_mean - ss_len_std)))
         N_max = int(round(ss_len_mean + ss_len_std))
         print("Mean:{} Std:{} N_min:{} N_max:{}".format(ss_len_mean,
                                                         ss_len_std,

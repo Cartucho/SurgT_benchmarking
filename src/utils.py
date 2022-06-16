@@ -48,12 +48,12 @@ def get_case_samples(config_data):
     path = os.path.join(config_data["dir"], config_data["subdir"])
     case_samples = []
     # Go through each of the cases
-    for case_id, (case_name, case_data) in enumerate(config_data["cases"].items()):
-        path_case = os.path.join(path, case_name)
+    for case_id, case_data in config_data["cases"].items():
+        path_case = os.path.join(path, case_id)
         # Go through each of the samples of each case
         for sample_number, sample_links in case_data.items():
             path_case_sample = os.path.join(path_case, sample_number)
-            cs = CaseSample(case_id + 1, path_case_sample, sample_links) # + 1 to start in case_1
+            cs = CaseSample(case_id, path_case_sample, sample_links) # + 1 to start in case_1
             case_samples.append(cs)
     return case_samples
 

@@ -69,6 +69,16 @@ class Video:
         return bbox_1, bbox_2, is_difficult
 
 
+    def is_bbox_inside_image(self, bbox_1, bbox_2):
+        u, u_max, v, v_max = bbox_1[:]
+        if u < 0 or v < 0 or u >= self.im_width or v >= self.im_height:
+            return False
+        u, u_max, v, v_max = bbox_2[:]
+        if u < 0 or v < 0 or u >= self.im_width or v >= self.im_height:
+            return False
+        return True
+
+
     def load_calib_data(self):
         fs = cv.FileStorage(self.calib_path, cv.FILE_STORAGE_READ)
         self.r = np.array(fs.getNode('R').mat(), dtype=np.float64)
@@ -474,8 +484,8 @@ def assess_bbox(ss, frame_counter, kr, bbox1_gt, bbox1_p, bbox2_gt, bbox2_p, is_
 
 def assess_keypoint(v, kr, ss):
     # Create window for results animation
-    window_name = "Assessment animation"  # TODO: hardcoded
-    thick = 2  # TODO: hardcoded
+    window_name = "Assessment animation"  # Name of the window. Does not affect the results!
+    thick = 2  # thickness of bounding-box, for visualization only! Does not affect the results!
     bbox1_p, bbox2_p = None, None # For the visual animation
     cv.namedWindow(window_name, cv.WINDOW_KEEPRATIO)
 
@@ -495,7 +505,9 @@ def assess_keypoint(v, kr, ss):
                 # We can only initialize if we have ground-truth bboxes
                 if not is_difficult:
                     # Only if bbox is not difficult to track
-                    t = Tracker(im1, im2, bbox1_gt, bbox2_gt)
+                    if v.is_bbox_inside_image(bbox1_gt, bbox2_gt):
+                        # Only if the bbox is inside the image
+                        t = Tracker(im1, im2, bbox1_gt, bbox2_gt)
         else:
             # Update the tracker
             bbox1_p, bbox2_p = t.tracker_update(im1, im2)
@@ -540,7 +552,7 @@ def calculate_results_for_video(rank, case_sample_path, is_to_rectify, config_re
                         config_results["iou_threshold"],
                         v.Q)
         ss = SSeq()
-        assess_keypoint(v, kr, ss)
+        assess_keypoint(v, kr, ss) # Assess a bounding-box throughout an entire video
         rank.append_ss_list(ss.padded_list)
         acc, rob, err_2d, err_3d = kr.get_full_metric()
         stats.append_stats(acc, rob, err_2d, err_3d)
@@ -589,6 +601,7 @@ def calculate_results(config, valid_or_test):
         # Go through each video
         for cs in case_samples:
             if cs.case_id != case_id_prev:
+                # Flush previous video's resuts
                 calculate_case_statitics(case_id_prev, stats_case, stats_case_all)
                 stats_case = Statistics() # For a specific case
                 case_id_prev = cs.case_id

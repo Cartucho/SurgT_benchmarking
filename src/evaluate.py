@@ -158,22 +158,22 @@ class Statistics:
     def __init__(self):
         self.acc_list = []
         self.rob_list = []
-        self.err_2d_list = []
-        self.err_3d_list = []
+        self.err_list_2d = []
+        self.err_list_3d = []
 
 
     def append_stats(self, acc, rob, err_2d, err_3d):
         self.acc_list.append(acc)
         self.rob_list.append(rob)
-        self.err_2d_list.append(err_2d)
-        self.err_3d_list.append(err_3d)
+        self.err_list_2d.append(err_2d)
+        self.err_list_3d.append(err_3d)
 
 
     def get_stats_mean(self):
         mean_acc = np.mean(self.acc_list)
         mean_rob = np.mean(self.rob_list)
-        mean_err_2d = np.mean(self.err_2d_list)
-        mean_err_3d = np.mean(self.err_3d_list)
+        mean_err_2d = np.mean(self.err_list_2d)
+        mean_err_3d = np.mean(self.err_list_3d)
         return mean_acc, mean_rob, mean_err_2d, mean_err_3d
 
 
@@ -281,8 +281,8 @@ class KptResults:
         self.iou_threshold = iou_threshold
         self.Q = Q
         self.iou_list = []
-        self.err_2d_list = []
-        self.err_3d_list = []
+        self.err_list_2d = []
+        self.err_list_3d = []
         self.robustness_frames_counter = 0
         self.n_excessive_frames = 0
         self.n_visible = 0
@@ -358,7 +358,7 @@ class KptResults:
         err_2d_1 = self.get_l2_norm(centr_2d_gt_1, centr_2d_p_1)
         err_2d_2 = self.get_l2_norm(centr_2d_gt_2, centr_2d_p_2)
         err_2d = np.mean([err_2d_1, err_2d_2])
-        self.err_2d_list.append(err_2d)
+        self.err_list_2d.append(err_2d)
         # Get 3D error [mm]
         disp_p = centr_2d_p_1[0] - centr_2d_p_2[0]
         disp_gt = centr_2d_gt_1[0] - centr_2d_gt_2[0]
@@ -370,7 +370,7 @@ class KptResults:
             centr_3d_p = self.get_3d_pt(disp_p, centr_2d_p_1[0], centr_2d_p_1[1])
             centr_3d_gt = self.get_3d_pt(disp_gt, centr_2d_gt_1[0], centr_2d_gt_1[1])
             err_3d = self.get_l2_norm(centr_3d_p, centr_3d_gt)
-            self.err_3d_list.append(err_3d)
+            self.err_list_3d.append(err_3d)
 
 
     def get_iou(self, bbox_gt, bbox_p):
@@ -417,8 +417,8 @@ class KptResults:
         """
         acc = self.get_accuracy_score()
         rob = self.get_robustness_score()
-        err_2d = np.mean(self.err_2d_list)
-        err_3d = np.mean(self.err_2d_list)
+        err_2d = np.mean(self.err_list_2d)
+        err_3d = np.mean(self.err_list_3d)
         return acc, rob, err_2d, err_3d
 
 

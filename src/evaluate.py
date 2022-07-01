@@ -573,7 +573,7 @@ def print_results(str_start, acc, rob, err_2d, err_3d):
                                                                                   err_3d))
 
 
-def calculate_case_statitics(case_id, stats_case, stats_case_all):
+def calculate_and_save_case_statitics(case_id, stats_case, stats_case_all):
     if case_id != -1:
         mean_acc, mean_rob, mean_err_2d, mean_err_3d = stats_case.get_stats_mean()
         print_results( "\tCase:{}".format(case_id), mean_acc, mean_rob, mean_err_2d, mean_err_3d)
@@ -599,7 +599,7 @@ def calculate_results(config, valid_or_test):
         for cs in case_samples:
             if cs.case_id != case_id_prev:
                 # Save resuts for all videos of the previous case
-                calculate_case_statitics(case_id_prev, stats_case, stats_case_all)
+                calculate_and_save_case_statitics(case_id_prev, stats_case, stats_case_all)
                 stats_case = Statistics() # For a specific case
                 case_id_prev = cs.case_id
             acc, rob, err_2d, err_3d = calculate_results_for_video(rank,
@@ -609,7 +609,7 @@ def calculate_results(config, valid_or_test):
             print_results("\t\t{}".format(cs.case_sample_path), acc, rob, err_2d, err_3d)
             stats_case.append_stats(acc, rob, err_2d, err_3d)
         # Calculate statistics of the last case, at the end of for-loop
-        calculate_case_statitics(cs.case_id, stats_case, stats_case_all)
+        calculate_and_save_case_statitics(cs.case_id, stats_case, stats_case_all)
 
         mean_acc, mean_rob, mean_err_2d, mean_err_3d = stats_case_all.get_stats_mean()
         print('{} final score:'.format(valid_or_test).upper())

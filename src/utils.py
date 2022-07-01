@@ -2,7 +2,6 @@ import os
 import yaml
 import dload
 
-
 class CaseSample:
     def __init__(self, case_id, case_sample_path, case_sample_links):
         self.case_id = case_id
@@ -19,6 +18,12 @@ class CaseSample:
             else:
                 print("\t\t{}: DOWNLOADING...".format(file_path))
                 dload.save(file_link, file_path)
+
+class Case:
+    def __init__(self, case_id):
+        self.case_id = case_id
+        self.case_samples = []
+
 
 
 def is_path_file(string):
@@ -44,26 +49,29 @@ def make_dir_if_needed(dir_path):
         os.makedirs(dir_path)
 
 
-def get_case_samples(config_data):
+def get_cases(config_data):
     path = os.path.join(config_data["dir"], config_data["subdir"])
-    case_samples = []
+    cases = []
     # Go through each of the cases
     for case_id, case_data in config_data["cases"].items():
+        case = Case(case_id)
         path_case = os.path.join(path, case_id)
         # Go through each of the samples of each case
         for sample_number, sample_links in case_data.items():
             path_case_sample = os.path.join(path_case, sample_number)
-            cs = CaseSample(case_id, path_case_sample, sample_links) # + 1 to start in case_1
-            case_samples.append(cs)
-    return case_samples
+            cs = CaseSample(case_id, path_case_sample, sample_links)
+            case.case_samples.append(cs)
+        cases.append(case)
+    return cases
 
 
 def download_folder(config_data):
     if config_data["is_to_download"]:
         print("DOWNLOAD: Checking `{}` data:".format(config_data["subdir"]))
-        case_samples = get_case_samples(config_data)
-        for cs in case_samples:
-            cs.download_case_sample_data()
+        cases = get_cases(config_data)
+        for case in cases:
+            for cs in case.case_samples:
+                cs.download_case_sample_data()
 
 
 def download_data(config):

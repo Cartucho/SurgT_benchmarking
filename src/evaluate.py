@@ -567,19 +567,10 @@ def calculate_results_for_video(rank, case_sample_path, is_to_rectify, config_re
 
 def print_results(str_start, acc, rob, err_2d, err_3d):
     print("{} Acc:{:.3f} Rob:{:.3f} Err_2D: {:.1f} [pixels] Err_3D: {:.2f} [mm]".format(str_start,
-                                                                                  acc,
-                                                                                  rob,
-                                                                                  err_2d,
-                                                                                  err_3d))
-
-
-def calculate_and_save_case_statitics(case_id, stats_case, stats_case_all):
-    if case_id != -1:
-        mean_acc, mean_rob, mean_err_2d, mean_err_3d = stats_case.get_stats_mean()
-        print_results( "\tCase:{}".format(case_id), mean_acc, mean_rob, mean_err_2d, mean_err_3d)
-        print("\n")
-        # Append them to final statistics
-        stats_case_all.append_stats(mean_acc, mean_rob, mean_err_2d, mean_err_3d)
+                                                                                        acc,
+                                                                                        rob,
+                                                                                        err_2d,
+                                                                                        err_3d))
 
 
 def calculate_results(config, valid_or_test):
@@ -588,35 +579,35 @@ def calculate_results(config, valid_or_test):
     config_data = config[valid_or_test]
 
     rank = EAO_Rank(config_data["N_min"], config_data["N_max"])
-    case_id_prev = -1
-    stats_case = Statistics() # For a specific case
     stats_case_all = Statistics() # For ALL cases
 
     if config_data["is_to_evaluate"]:
         print('{} dataset'.format(valid_or_test).upper())
-        case_samples = utils.get_case_samples(config_data)
-        # Go through each video
-        for cs in case_samples:
-            if cs.case_id != case_id_prev:
-                # Save resuts for all videos of the previous case
-                calculate_and_save_case_statitics(case_id_prev, stats_case, stats_case_all)
-                stats_case = Statistics() # For a specific case
-                case_id_prev = cs.case_id
-            acc, rob, err_2d, err_3d = calculate_results_for_video(rank,
-                                                                   cs.case_sample_path,
-                                                                   is_to_rectify,
-                                                                   config_results)
-            print_results("\t\t{}".format(cs.case_sample_path), acc, rob, err_2d, err_3d)
-            stats_case.append_stats(acc, rob, err_2d, err_3d)
-        # Calculate statistics of the last case, at the end of for-loop
-        calculate_and_save_case_statitics(cs.case_id, stats_case, stats_case_all)
-
+        cases = utils.get_cases(config_data)
+        # Go through each case
+        for case in cases:
+            stats_case = Statistics() # Statistics for a specific case
+            print("\t{}".format(case.case_id))
+            # Go through case sample (in other words, each video)
+            for cs in case.case_samples:
+                acc, rob, err_2d, err_3d = calculate_results_for_video(rank,
+                                                                       cs.case_sample_path,
+                                                                       is_to_rectify,
+                                                                       config_results)
+                print_results("\t\t{}".format(cs.case_sample_path), acc, rob, err_2d, err_3d)
+                stats_case.append_stats(acc, rob, err_2d, err_3d)
+            mean_acc, mean_rob, mean_err_2d, mean_err_3d = stats_case.get_stats_mean()
+            print_results("\t", mean_acc, mean_rob, mean_err_2d, mean_err_3d)
+            print() # Create visual space
+            stats_case_all.append_stats(mean_acc, mean_rob, mean_err_2d, mean_err_3d)
+        # Calculate the statistics for all cases together
         mean_acc, mean_rob, mean_err_2d, mean_err_3d = stats_case_all.get_stats_mean()
         print('{} final score:'.format(valid_or_test).upper())
         eao = rank.calculate_eao_score()
         print_results("\tEAO:{:.3f}".format(eao), mean_acc, mean_rob, mean_err_2d, mean_err_3d)
 
 
+# function called from `main.py`!
 def evaluate_method(config):
     calculate_results(config, "validation")
     calculate_results(config, "test")

@@ -259,7 +259,7 @@ class EAO_Rank:
         # Remove any "is_difficult" score
         eao_curve_N_filt = [value for value in eao_curve_N if value != "is_difficult"]
         return np.mean(eao_curve_N_filt)
-        
+
 
 class SSeq:
     def __init__(self):
@@ -272,7 +272,6 @@ class SSeq:
 
     def append_padded_vector(self, padded_vec):
         self.padded_list.append(padded_vec)
-
 
 
 class KptResults:
@@ -409,6 +408,7 @@ class KptResults:
         assert(rob >= 0.0 and rob <= 1.0)
         return rob
 
+
     def get_full_metric(self):
         """
         Only happens after all frames are processed, end of video for-loop!
@@ -418,7 +418,6 @@ class KptResults:
         err_2d = np.mean(self.err_list_2d)
         err_3d = np.mean(self.err_list_3d)
         return acc, rob, err_2d, err_3d
-
 
 
 def get_bbox_corners(bbox):
@@ -599,7 +598,7 @@ def calculate_results(config, valid_or_test):
         # Go through each video
         for cs in case_samples:
             if cs.case_id != case_id_prev:
-                # Flush previous video's resuts
+                # Save resuts for all videos of the previous case
                 calculate_case_statitics(case_id_prev, stats_case, stats_case_all)
                 stats_case = Statistics() # For a specific case
                 case_id_prev = cs.case_id

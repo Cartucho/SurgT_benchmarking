@@ -313,15 +313,13 @@ class KptResults:
             # Use the mean overlap between the two images
             iou = np.mean([iou1, iou2])
         self.iou_list.append(iou)
+        self.n_misses_successive += 1
         if iou1 > self.iou_threshold and iou2 > self.iou_threshold:
             self.robustness_frames_counter += 1
             self.calculate_l2_norm_errors(bbox1_gt, bbox1_p, bbox2_gt, bbox2_p)
             self.reset_n_successive_misses()
         # Otherwise it missed
-        self.n_misses_successive += 1
         if self.n_misses_successive > self.n_misses_allowed:
-            # Keep only the IoUs before tracking failure
-            del self.iou_list[-self.n_misses_successive:]
             self.reset_n_successive_misses()
             return True, iou
         return False, iou
@@ -584,7 +582,7 @@ def calculate_case_statitics(case_id, stats_case, stats_case_all):
         # Append them to final statistics
         stats_case_all.append_stats(mean_acc, mean_rob, mean_err_2d, mean_err_3d)
 
-    
+
 def calculate_results(config, valid_or_test):
     config_results = config["results"]
     is_to_rectify = config["is_to_rectify"]

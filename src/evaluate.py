@@ -337,7 +337,7 @@ class KptResults:
         return np.linalg.norm(centr_gt - centr_p)
 
 
-    def get_3d_pt(self, u, v, disp):
+    def get_3d_pt(self, disp, u, v):
         assert(disp > 0)
         pt_2d = np.array([[u],
                           [v],
@@ -350,25 +350,25 @@ class KptResults:
 
 
     def calculate_l2_norm_errors(self, bbox1_gt, bbox1_p, bbox2_gt, bbox2_p):
-        centr_2d_gt = self.get_bbox_centr(bbox1_gt)
-        centr_2d_p = self.get_bbox_centr(bbox1_p)
-        centr_2d_gt = self.get_bbox_centr(bbox2_gt)
-        centr_2d_p = self.get_bbox_centr(bbox2_p)
+        centr_2d_gt_1 = self.get_bbox_centr(bbox1_gt)
+        centr_2d_p_1 = self.get_bbox_centr(bbox1_p)
+        centr_2d_gt_2 = self.get_bbox_centr(bbox2_gt)
+        centr_2d_p_2 = self.get_bbox_centr(bbox2_p)
         # Get 2D error [pixels]
-        err_2d_1 = self.get_l2_norm(centr_2d_gt, centr_2d_p)
-        err_2d_2 = self.get_l2_norm(centr_2d_gt, centr_2d_p)
+        err_2d_1 = self.get_l2_norm(centr_2d_gt_1, centr_2d_p_1)
+        err_2d_2 = self.get_l2_norm(centr_2d_gt_2, centr_2d_p_2)
         err_2d = np.mean([err_2d_1, err_2d_2])
         self.err_2d_list.append(err_2d)
         # Get 3D error [mm]
-        disp_p = centr_2d_p[0] - centr_2d_p[0]
-        disp_g = centr_2d_gt[0] - centr_2d_gt[0]
-        if disp_p > 0 and disp_g > 0:
+        disp_p = centr_2d_p_1[0] - centr_2d_p_2[0]
+        disp_gt = centr_2d_gt_1[0] - centr_2d_gt_2[0]
+        if disp_p > 0 and disp_gt > 0:
             """
              I am assuming that `centr_bbox1_p` and `centr_bbox2_p` have the same `v`,
              which should be the case for a stereo Tracker that works with rectified images as input. 
             """
-            centr_3d_p = self.get_3d_pt(disp_p, centr_2d_p[0], centr_2d_p[1])
-            centr_3d_gt = self.get_3d_pt(disp_gt, centr_2d_gt[0], centr_2d_gt[1])
+            centr_3d_p = self.get_3d_pt(disp_p, centr_2d_p_1[0], centr_2d_p_1[1])
+            centr_3d_gt = self.get_3d_pt(disp_gt, centr_2d_gt_1[0], centr_2d_gt_1[1])
             err_3d = self.get_l2_norm(centr_3d_p, centr_3d_gt)
             self.err_3d_list.append(err_3d)
 

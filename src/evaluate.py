@@ -397,7 +397,7 @@ class KptResults:
         """
         if bbox1_gt is None or bbox2_gt is None:
             # Bbox is not visible in one of the images
--           if bbox1_p is not None or bbox2_p is not None:
+            if bbox1_p is not None or bbox2_p is not None:
                 # If the tracker made a prediction when the target is not visible
                 self.n_excessive_frames += 1
             return False, "ignore" # "ignore" since the bbox is not visible

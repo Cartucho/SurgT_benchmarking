@@ -160,7 +160,8 @@ class Video:
         terminator_frame = 0
         if self.gt_data is not None:
             last_frame = len(self.gt_data) - 1 # -1 since we start from 0
-            for i in range(last_frame, -1, -1): # From [terminator_frame, until 0], with steps of -1
+            # Since we are looking for the last good frame, we go from last_frame until 0
+            for i in range(last_frame, -1, -1): # [last_frame, last_frame - 1, ..., 1, 0]
                 is_visible_in_both_stereo, is_difficult, bbxs = self.gt_data[i]
                 if is_visible_in_both_stereo and \
                    not is_difficult:
@@ -395,27 +396,32 @@ class KptResults:
         Check if stereo tracking is a success or not
         """
         if bbox1_gt is None or bbox2_gt is None:
-            if bbox1_p is not None or bbox2_p is not None:
+            # Bbox is not visible in one of the images
+-           if bbox1_p is not None or bbox2_p is not None:
                 # If the tracker made a prediction when the target is not visible
                 self.n_excessive_frames += 1
-            return False, "ignore"
+            return False, "ignore" # "ignore" since the bbox is not visible
+        # Otherwise, ground truth is visible
         self.n_visible += 1
 
-        iou = 0
-        iou1 = 0
-        iou2 = 0
         if bbox1_p is not None and bbox2_p is not None:
+            # Tracker predicted the position of the bounding boxes
             iou1 = self.get_iou(bbox1_gt, bbox1_p)
             iou2 = self.get_iou(bbox2_gt, bbox2_p)
-            # Use the mean overlap between the two images
             iou = np.mean([iou1, iou2])
+            if iou1 > self.iou_threshold and iou2 > self.iou_threshold:
+                # Enough overlap
+                self.robustness_frames_counter += 1
+                self.calculate_l2_norm_errors(bbox1_gt, bbox1_p, bbox2_gt, bbox2_p)
+                self.n_misses_successive = 0
+            else:
+                # Not enough overlap
+                self.n_misses_successive += 1
+        else:
+            # Tracker failed to predict the bounding boxes
+            iou = 0
+            self.n_misses_successive += 1
         self.iou_list.append(iou)
-        self.n_misses_successive += 1
-        if iou1 > self.iou_threshold and iou2 > self.iou_threshold:
-            self.robustness_frames_counter += 1
-            self.calculate_l2_norm_errors(bbox1_gt, bbox1_p, bbox2_gt, bbox2_p)
-            self.n_misses_successive = 0
-        # Otherwise it missed
         if self.n_misses_successive > self.n_misses_allowed:
             self.n_misses_successive = 0
             return True, iou
@@ -469,23 +475,23 @@ class KptResults:
 
 
     def get_iou(self, bbox_gt, bbox_p):
-        x1, y1, x2, y2 = [bbox_gt[0], bbox_gt[1], bbox_gt[0]+bbox_gt[2], bbox_gt[1]+bbox_gt[3]]
-        x3, y3, x4, y4 = [bbox_p[0], bbox_p[1], bbox_p[0]+bbox_p[2], bbox_p[1]+bbox_p[3]]
-        x_inter1 = max(x1, x3)
-        y_inter1 = max(y1, y3)
-        x_inter2 = min(x2, x4)
-        y_inter2 = min(y2, y4)
-        widthinter = np.maximum(0,x_inter2 - x_inter1)
-        heightinter = np.maximum(0,y_inter2 - y_inter1)
-        areainter = widthinter * heightinter
-        widthboxl = abs(x2 - x1)
-        heightboxl = abs(y2 - y1)
-        widthbox2 = abs(x4 - x3)
-        heightbox2 = abs(y4 - y3)
-        areaboxl = widthboxl * heightboxl
-        areabox2 = widthbox2 * heightbox2
-        areaunion = areaboxl + areabox2 - areainter
-        iou = areainter / float(areaunion)
+        gt_left, gt_top, gt_right, gt_bot = [bbox_gt[0], bbox_gt[1], bbox_gt[0]+bbox_gt[2], bbox_gt[1]+bbox_gt[3]]
+        p_left, p_top, p_right, p_bot = [bbox_p[0], bbox_p[1], bbox_p[0]+bbox_p[2], bbox_p[1]+bbox_p[3]]
+        inter_left = max(gt_left, p_left)
+        inter_top = max(gt_top, p_top)
+        inter_right = min(gt_right, p_right)
+        inter_bot = min(gt_bot, p_bot)
+        inter_width = np.maximum(0,inter_right - inter_left)
+        inter_height = np.maximum(0,inter_bot - inter_top)
+        inter_area = inter_width * inter_height
+        gt_width = bbox_gt[2]
+        gt_height = bbox_gt[3]
+        p_width = bbox_p[2]
+        p_height = bbox_p[3]
+        gt_area = gt_width * gt_height
+        p_area = p_width * p_height
+        union_area = gt_area + p_area - inter_area
+        iou = inter_area / float(union_area)
         assert(iou >= 0.0 and iou <= 1.0)
         return iou
 

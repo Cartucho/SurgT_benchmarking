@@ -634,7 +634,7 @@ def calculate_results_for_video(rank, case_sample_path, is_to_rectify, config_re
         # Re-start video for assessing the next keypoint
         v.video_restart()
 
-    # Check that we have statistics for each of the keypoints
+    # Check that we have statistics for each of the keypoints
     assert(len(stats.acc_list) == v.n_keypoints)
 
     # Stop video after assessing all the keypoints of that specific video
@@ -680,7 +680,7 @@ def calculate_results(config, valid_or_test):
         # Calculate the statistics for all cases together
         mean_acc, mean_rob, mean_err_2d, mean_err_3d = stats_case_all.get_stats_mean()
         print('{} final score:'.format(valid_or_test).upper())
-        rank.calculate_N_min_and_N_high() # Used by callenge organizers to get N_min and N_max for each dataset
+        #rank.calculate_N_min_and_N_high() # Used by callenge organizers to get N_min and N_max for each dataset
         eao = rank.calculate_eao_score()
         print_results("\tEAO:{:.3f}".format(eao), mean_acc, mean_rob, mean_err_2d, mean_err_3d)
 

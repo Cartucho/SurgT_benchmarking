@@ -154,6 +154,21 @@ class Video:
         self.cap.release()
 
 
+    def get_terminator_frame(self):
+        # Go through entire video and find the last frame whose,
+        # bbox is (1) visible and (2) not difficult
+        terminator_frame = 0
+        if self.gt_data is not None:
+            last_frame = len(self.gt_data) - 1 # -1 since we start from 0
+            for i in range(last_frame, -1, -1): # From [terminator_frame, until 0], with steps of -1
+                is_visible_in_both_stereo, is_difficult, bbxs = self.gt_data[i]
+                if is_visible_in_both_stereo and \
+                   not is_difficult:
+                   terminator_frame = i
+                   break
+        return terminator_frame
+
+
 class Statistics:
     def __init__(self):
         self.acc_list = []
@@ -179,42 +194,24 @@ class Statistics:
 
 class EAO_Rank:
     def __init__(self, N_min, N_max):
-        self.all_padded_ss_list = []
+        self.all_ss = []
+        self.all_ss_len = []
+        self.all_ss_len_max = 0
         self.N_min = N_min
         self.N_max = N_max
 
 
-    def append_ss_list(self, padded_list):
-        self.all_padded_ss_list += padded_list
+    def add_all_kpt_ss(self, kss):
+        for ss in kss.kpt_all_ss:
+            ss_iou_scores = ss.ss_iou_scores
+            self.all_ss.append(ss_iou_scores)
+            self.all_ss_len.append(len(ss_iou_scores))
+            self.all_ss_len_max = max(self.all_ss_len_max, len(ss_iou_scores))
 
 
-    def update_ss_length(self):
-        if not self.all_padded_ss_list:
-            return
-        all_ss_len = []
-        for ss in self.all_padded_ss_list:
-            if ss:
-                # If list not empty
-                len_ss = len(ss)
-                ss_copy = ss.copy()
-                # Do not count with "is_difficult" at the tail of the list
-                for i in range(len_ss):
-                    val = ss_copy.pop()
-                    if val != "is_difficult":
-                        break
-                all_ss_len.append(len_ss - i)
-        all_ss_len = np.array(all_ss_len)
-        self.ss_len_max = np.amax(all_ss_len)
-        """ HOWTO Calculate N_min and N_max:
-            Step 1. Uncomment break in `assess_bbox()` to not include reseted ss
-            Step 2. Uncomment the next line `self.calculate_N_min_and_N_high`
-        """
-        #self.calculate_N_min_and_N_high(all_ss_len)
-
-
-    def calculate_N_min_and_N_high(self, all_ss_len):
-        ss_len_mean = np.mean(all_ss_len)
-        ss_len_std = np.std(all_ss_len)
+    def calculate_N_min_and_N_high(self):
+        ss_len_mean = np.mean(self.all_ss_len)
+        ss_len_std = np.std(self.all_ss_len)
         N_min = max(1, int(round(ss_len_mean - ss_len_std)))
         N_max = int(round(ss_len_mean + ss_len_std))
         print("Mean:{} Std:{} N_min:{} N_max:{}".format(ss_len_mean,
@@ -222,29 +219,28 @@ class EAO_Rank:
                                                         N_min,
                                                         N_max))
         # Show histogram
-        bins = int(self.ss_len_max / 10) # Make bars of 10 frames
-        hist, bin_edges = np.histogram(all_ss_len, bins=bins)
-        _ = plt.hist(all_ss_len, bins=bin_edges)  # arguments are passed to np.histogram
+        bins = int(self.all_ss_len_max / 10) # Make bars of 10 frames
+        hist, bin_edges = np.histogram(self.all_ss_len, bins=bins)
+        _ = plt.hist(self.all_ss_len, bins=bin_edges)  # arguments are passed to np.histogram
         plt.show()
 
 
     def calculate_eao_curve(self):
         self.eao_curve = []
-        self.ss_len_max = 0
-        self.update_ss_length()
-        for i in range(self.ss_len_max):
+        for i in range(self.all_ss_len_max):
             score = 0
             ss_sum = 0.0
             ss_counter = 0
-            for ss in self.all_padded_ss_list:
+            for ss in self.all_ss:
                 if len(ss) > i:
-                    if ss[i] == "is_difficult":
+                    if ss[i] == "ignore":
                         continue
                     ss_sum += ss[i]
                     ss_counter += 1
             if ss_counter == 0:
-                # This happens when all of the ss had the value "is_difficult" for frame i
-                self.eao_curve.append("is_difficult")
+                # This happens when all of the ss had the value "ignore" for frame i
+                # , which happens when the bbox is not visible, or difficult
+                self.eao_curve.append("ignore")
                 continue
             score = ss_sum / ss_counter
             self.eao_curve.append(score)
@@ -257,21 +253,127 @@ class EAO_Rank:
             return 0.0
         eao_curve_N = self.eao_curve[self.N_min:self.N_max]
         # Remove any "is_difficult" score
-        eao_curve_N_filt = [value for value in eao_curve_N if value != "is_difficult"]
+        eao_curve_N_filt = [value for value in eao_curve_N if value != "ignore"]
         return np.mean(eao_curve_N_filt)
 
 
 class SSeq:
+    """
+        A specific sub-sequence
+    """
     def __init__(self):
-        # Initalized once per video
-        self.start_sub_sequence = 0  # frame count for the start of every ss
-        self.sub_sequence_current = []  # all successful tracking vectors within a sub sequence
-        self.accumulate_ss_iou = []  # accumulates the IoU scores of the running tracker
-        self.padded_list = []
+        self.ss_iou_scores = []
 
 
-    def append_padded_vector(self, padded_vec):
-        self.padded_list.append(padded_vec)
+    def add_iou_score(self, iou):
+        self.ss_iou_scores.append(iou)
+
+
+class KptSubSequences:
+    """
+       All the sub-sequences of a specific keypoint on a specific video.
+       Example with a video of 1000 frames.
+
+       (a) A sub-sequence is created when the tracker is initialized or whenever it resets.
+           And all the sub-sequences go until the TERMINATOR_FRAME (explained in (b)).
+
+              (1) tracker initialized,
+                  for the first time
+                       |
+                       |      (2) tracker
+                       |          resetted
+                       |            |
+        video   0      v            v                       999
+        frames: |------x------------x------------------------>
+                       |            |
+                       |-------------------------------------> sub-sequence 1
+                                    |
+                                    |----------------------- > sub-sequence 2
+
+       (b) All the sub-sequence stop at the TERMINATOR_FRAME.
+
+           The TERMINATOR_FRAME, is the last frame of the video, for a specific keypoint,
+           where we have a bbox that is both (i) visible, and (ii) not marked as difficult.
+
+              (1) bbox becomes
+                  visible, for
+                  the first time
+                       |
+                       |    (2) tracker
+                       |        resetted    (3) TERMINATOR_FRAME
+                       |           |                |
+        video   0      v           v                v       999
+        frames: |------x-----------x----------------x------->
+                       |           |                |
+                       |----------------------------> sub-sequence 1
+                                   |                |
+                                   |----------------> sub-sequence 2
+
+
+       (c) During the video a sub-sequence stores the IoU scores at each frame.
+           If in a frame the bbox is not visible or is difficult it stores, `ignore` instead,
+           so that this frame is ignored when calculating the final EAO score.
+
+              (1) bbox becomes
+                    visible
+                       |
+                       |      (2) bbox becomes
+                       |         not visible
+                       |            |        (3) bbox
+                       |            |            visible again
+                       |            |             |
+                0      v            v             v         999
+        frames: |------x------------x-------------x---------->
+                       |            |             |
+                       |------------x-------------x----------> sub-sequence 1
+        IoU scores:    [1, 0.9...0.5, i, i, i... i,  0.4  0.3]
+                                    | i = `ignore`|
+
+        (d) If a tracker is resetted the rest the previous sub-sequence is padded with zeros.
+
+              (1) bbox becomes
+                  visible, for
+                  the first time
+                       |
+                       |            (2) tracker
+                       |                resetted
+                       |                  |
+        video   0      v                  v                 999
+        frames: |------x------------------x------------------>
+                       |                  |
+                       |------------------x------------------> sub-sequence 1
+        IoU scores 1:  [1,0.8...0.02, 0.01, 0, 0,..., 0, 0, 0]
+                                          |   zero padding   |
+                                          |
+                                          |------------------> sub-sequence 2
+        IoU scores 2:                     [1, 0.8,...0.6, 0.6]
+
+        The sub-sequences start with high scores, since
+        sub-sequences are created when the tracker is re-initialized
+    """
+    def __init__(self, terminator_frame):
+        self.TERMINATOR_FRAME = terminator_frame
+        self.kpt_all_ss = []
+
+
+    def add_ss(self):
+        ss = SSeq()
+        self.kpt_all_ss.append(ss)
+
+
+    def add_iou_score(self, iou, frame_counter):
+        if frame_counter <= self.TERMINATOR_FRAME:
+            if iou == "ignore":
+                for ss in self.kpt_all_ss:
+                    ss.add_iou_score("ignore")
+            else:
+                ss_len = len(self.kpt_all_ss)
+                ss_last = self.kpt_all_ss[-1]
+                ss_last.add_iou_score(iou)
+                if ss_len > 1:
+                    # Padding zero 0 to the other sub-sequences
+                    for ss in self.kpt_all_ss[:-1]:
+                        ss.add_iou_score(0)
 
 
 class KptResults:
@@ -288,10 +390,6 @@ class KptResults:
         self.n_misses_successive = 0
 
 
-    def reset_n_successive_misses(self):
-        self.n_misses_successive = 0
-
-
     def calculate_bbox_metrics(self, bbox1_gt, bbox1_p, bbox2_gt, bbox2_p):
         """
         Check if stereo tracking is a success or not
@@ -300,7 +398,7 @@ class KptResults:
             if bbox1_p is not None or bbox2_p is not None:
                 # If the tracker made a prediction when the target is not visible
                 self.n_excessive_frames += 1
-            return False, None
+            return False, "ignore"
         self.n_visible += 1
 
         iou = 0
@@ -316,10 +414,10 @@ class KptResults:
         if iou1 > self.iou_threshold and iou2 > self.iou_threshold:
             self.robustness_frames_counter += 1
             self.calculate_l2_norm_errors(bbox1_gt, bbox1_p, bbox2_gt, bbox2_p)
-            self.reset_n_successive_misses()
+            self.n_misses_successive = 0
         # Otherwise it missed
         if self.n_misses_successive > self.n_misses_allowed:
-            self.reset_n_successive_misses()
+            self.n_misses_successive = 0
             return True, iou
         return False, iou
 
@@ -449,42 +547,22 @@ def draw_bb_in_frame(im1, im2, bbox1_gt, bbox1_p, bbox2_gt, bbox2_p, is_difficul
     return im_hstack
 
 
-def assess_bbox(ss, frame_counter, kr, bbox1_gt, bbox1_p, bbox2_gt, bbox2_p, is_difficult):
+def assess_bbox(kss, frame_counter, kr, bbox1_gt, bbox1_p, bbox2_gt, bbox2_p, is_difficult):
     if is_difficult:
         # If `is_difficult` then the metrics are not be affected
-        ss.accumulate_ss_iou.append("is_difficult")
+        kss.add_iou_score("ignore", frame_counter)
         return False
-
-    if bbox1_gt is None or bbox2_gt is None:  # if GT is none, its the end of a ss
-        if len(ss.sub_sequence_current) > 0:
-            ss.sub_sequence_current.append(ss.accumulate_ss_iou)  # appends the final IoU vector
-            ss.accumulate_ss_iou = []
-            ss.end_sub_sequence = frame_counter  # frame end of ss
-            bias = 0  # start at end frame of previous vector
-            for ss_tmp in ss.sub_sequence_current:
-                pad_req = ss.end_sub_sequence-ss.start_sub_sequence-len(ss_tmp)-bias  # length of padding req
-                ss.append_padded_vector(ss_tmp + [0.] * pad_req)  # padding and appending to list
-                bias += len(ss_tmp)
-                #break # Add a break if you do NOT want to include the resetted ss
-            ss.sub_sequence_current = []
-        ss.start_sub_sequence = frame_counter + 1
-
     reset_flag, iou = kr.calculate_bbox_metrics(bbox1_gt, bbox1_p, bbox2_gt, bbox2_p)
-    if reset_flag:
-        ss.sub_sequence_current.append(ss.accumulate_ss_iou)
-        ss.accumulate_ss_iou = []
-    else:
-        if iou is not None:
-            ss.accumulate_ss_iou.append(iou)
+    kss.add_iou_score(iou, frame_counter)
     return reset_flag
 
 
-def assess_keypoint(v, kr, ss):
+def assess_keypoint(v, kr, kss):
     # Create window for results animation
     window_name = "Assessment animation"  # Name of the window. Does not affect the results!
     thick = 2  # thickness of bounding-box, for visualization only! Does not affect the results!
     bbox1_p, bbox2_p = None, None # For the visual animation
-    cv.namedWindow(window_name, cv.WINDOW_KEEPRATIO)
+    cv.namedWindow(window_name, cv.WINDOW_KEEPRATIO) # For the visual animation
 
     # Use video and load a specific key point
     t = None
@@ -498,18 +576,19 @@ def assess_keypoint(v, kr, ss):
 
         if t is None:
             # Initialise or re-initialize the tracker
+            # (1) if we have ground-truth bboxes
             if bbox1_gt is not None and bbox2_gt is not None:
-                # We can only initialize if we have ground-truth bboxes
+                # (2) if bbox is not difficult to track
                 if not is_difficult:
-                    # Only if bbox is not difficult to track
+                    # (3) if the bbox is inside the image
                     if v.is_bbox_inside_image(bbox1_gt, bbox2_gt):
-                        # Only if the bbox is inside the image
                         t = Tracker(im1, im2, bbox1_gt, bbox2_gt)
+                        kss.add_ss() # Add a new sub-sequence when tracker is re-initialized
         else:
             # Update the tracker
             bbox1_p, bbox2_p = t.tracker_update(im1, im2)
             # Compute metrics for video and keep track of sub-sequences
-            reset_flag = assess_bbox(ss,
+            reset_flag = assess_bbox(kss,
                                      frame_counter,
                                      kr,
                                      bbox1_gt, bbox1_p,
@@ -518,7 +597,7 @@ def assess_keypoint(v, kr, ss):
             if reset_flag:
                 # If the tracker failed then we need to set it to None so that we re-initialize
                 t = None
-                # In visual animation, we hide the last predicted bboxs when the tracker fails
+                # In the visual animation, we hide the last predicted bboxs when the tracker fails
                 bbox1_p, bbox2_p = None, None
 
         # Show animation of the tracker
@@ -530,27 +609,26 @@ def assess_keypoint(v, kr, ss):
         cv.imshow(window_name, frame_aug)
         cv.waitKey(1)
 
-    # Do one last to finish the sub-sequences without changing the results
-    assess_bbox(ss, frame_counter, kr, None, None, None, None, False)
-
 
 def calculate_results_for_video(rank, case_sample_path, is_to_rectify, config_results):
     # Load video
     v = Video(case_sample_path, is_to_rectify)
 
-    # for when there are multiple keypoints
-    stats = Statistics()
+    # Store results
+    stats = Statistics() # To support multiple keypoints
 
     # Iterate through all the keypoints
     for ind_kpt in range(v.n_keypoints):
         # Load ground-truth for the specific keypoint being tested
         v.load_ground_truth(ind_kpt)
+        # After loading gt, get termination frame for that specific keypoint and video
+        terminator_frame = v.get_terminator_frame()
         kr = KptResults(config_results["n_misses_allowed"],
                         config_results["iou_threshold"],
                         v.Q)
-        ss = SSeq()
-        assess_keypoint(v, kr, ss) # Assess a bounding-box throughout an entire video
-        rank.append_ss_list(ss.padded_list)
+        kss = KptSubSequences(terminator_frame)
+        assess_keypoint(v, kr, kss) # Assess a bounding-box throughout an entire video
+        rank.add_all_kpt_ss(kss)
         acc, rob, err_2d, err_3d = kr.get_full_metric()
         stats.append_stats(acc, rob, err_2d, err_3d)
         # Re-start video for assessing the next keypoint
@@ -587,7 +665,7 @@ def calculate_results(config, valid_or_test):
         # Go through each case
         for case in cases:
             stats_case = Statistics() # Statistics for a specific case
-            print("\t{}".format(case.case_id))
+            print("\n\t{}".format(case.case_id))
             # Go through case sample (in other words, each video)
             for cs in case.case_samples:
                 acc, rob, err_2d, err_3d = calculate_results_for_video(rank,
@@ -597,12 +675,12 @@ def calculate_results(config, valid_or_test):
                 print_results("\t\t{}".format(cs.case_sample_path), acc, rob, err_2d, err_3d)
                 stats_case.append_stats(acc, rob, err_2d, err_3d)
             mean_acc, mean_rob, mean_err_2d, mean_err_3d = stats_case.get_stats_mean()
-            print_results("\t", mean_acc, mean_rob, mean_err_2d, mean_err_3d)
-            print() # Create visual space
+            print_results("\t\tMean results, ", mean_acc, mean_rob, mean_err_2d, mean_err_3d)
             stats_case_all.append_stats(mean_acc, mean_rob, mean_err_2d, mean_err_3d)
         # Calculate the statistics for all cases together
         mean_acc, mean_rob, mean_err_2d, mean_err_3d = stats_case_all.get_stats_mean()
         print('{} final score:'.format(valid_or_test).upper())
+        rank.calculate_N_min_and_N_high() # Used by callenge organizers to get N_min and N_max for each dataset
         eao = rank.calculate_eao_score()
         print_results("\tEAO:{:.3f}".format(eao), mean_acc, mean_rob, mean_err_2d, mean_err_3d)
 

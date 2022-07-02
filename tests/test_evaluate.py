@@ -54,65 +54,51 @@ def test_EAO_Rank():
     # Empty sequence
     ss_list = []
     rank = EAO_Rank(0, 0)
-    rank.append_ss_list(ss_list)
     eao = rank.calculate_eao_score()
     assert(eao == 0.0)
     # Single sequence
     ss_list = [[1., 1., 1.]]
     rank = EAO_Rank(0, len(ss_list))
-    rank.append_ss_list(ss_list)
+    rank.all_ss = ss_list
+    rank.all_ss_len = [len(ss_list)]
+    rank.all_ss_len_max = len(ss_list)
     eao = rank.calculate_eao_score()
     assert(eao == 1.0)
-    ss_list = [[1., "is_difficult", 1.]]
+    ss_list = [[1., "ignore", 1.]]
     rank = EAO_Rank(0, len(ss_list))
-    rank.append_ss_list(ss_list)
+    rank.all_ss = ss_list
+    rank.all_ss_len = [len(ss_list)]
+    rank.all_ss_len_max = len(ss_list)
     eao = rank.calculate_eao_score()
     assert(eao == 1.0)
-    ## `is_difficult` at the end
-    ss_list = [[1., 1., 0.5, "is_difficult", "is_difficult"]]
-    rank = EAO_Rank(0, 2)
-    rank.append_ss_list(ss_list)
-    eao = rank.calculate_eao_score()
-    assert(eao == 1.0) # Since I initialized EAO_Rank(0, 2), 0.5 is excluded
     # Multiple sequences
     ss_list = [[1.],
                [0.]]
     rank = EAO_Rank(0, len(ss_list[0]))
-    rank.append_ss_list(ss_list)
+    rank.all_ss = ss_list
+    rank.all_ss_len = [1, 1]
+    rank.all_ss_len_max = 1
     eao = rank.calculate_eao_score()
     assert(eao == 0.5)
-    ss_list = [["is_difficult"],
+    ss_list = [["ignore"],
                [0.7215]]
     rank = EAO_Rank(0, len(ss_list[0]))
-    rank.append_ss_list(ss_list)
+    rank.all_ss = ss_list
+    rank.all_ss_len = [1, 1]
+    rank.all_ss_len_max = 1
     eao = rank.calculate_eao_score()
     assert(eao == 0.7215)
     # Test curve
-    ss_list = [[0.721, 0.5, 0., "is_difficult"],
-               [0.000, 0.0, 0., 0.7215]]
+    ss_list = [[0.3605, 0.5, "ignore", 0.],
+               [0.0000, 0.0,       0., 0.7215]]
     rank = EAO_Rank(0, len(ss_list[1]))
-    rank.append_ss_list(ss_list)
+    rank.all_ss = ss_list
+    rank.all_ss_len = [4, 4]
+    rank.all_ss_len_max = 4
     rank.calculate_eao_curve()
-    assert(rank.eao_curve[0] == 0.3605)
+    assert(rank.eao_curve[0] == 0.18025)
     assert(rank.eao_curve[1] == 0.25)
     assert(rank.eao_curve[2] == 0.0)
-    assert(rank.eao_curve[3] == 0.7215)
+    assert(rank.eao_curve[3] == 0.36075)
     eao = rank.calculate_eao_score()
-    assert(eao == 0.333)
-    # Test append too
-    ss_list1 = [[1.0, "is_difficult"]]
-    ss_list2 = [[1.0, 0.72]]
-    ss_list3 = [[1.0, 0.72]]
-    rank = EAO_Rank(0, len(ss_list2[0]))
-    rank.append_ss_list(ss_list1)
-    rank.append_ss_list(ss_list2)
-    rank.append_ss_list(ss_list3)
-    eao = rank.calculate_eao_score()
-    assert(eao == 0.86)
-    # Test ss_len_max
-    ss_list = [[1., 1., 1., "is_difficult", "is_difficult"],
-               [0.]]
-    rank = EAO_Rank(0, 999)
-    rank.append_ss_list(ss_list)
-    rank.update_ss_length()
-    assert(rank.ss_len_max == 3) # "is_difficult" at the end does not count
+    assert(eao == 0.19775)

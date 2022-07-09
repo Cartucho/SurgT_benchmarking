@@ -563,12 +563,14 @@ def assess_bbox(kss, frame_counter, kr, bbox1_gt, bbox1_p, bbox2_gt, bbox2_p, is
     return reset_flag
 
 
-def assess_keypoint(v, kr, kss):
+def assess_keypoint(v, kr, kss, is_visualization_off):
     # Create window for results animation
-    window_name = "Assessment animation"  # Name of the window. Does not affect the results!
-    thick = 2  # thickness of bounding-box, for visualization only! Does not affect the results!
-    bbox1_p, bbox2_p = None, None # For the visual animation
-    cv.namedWindow(window_name, cv.WINDOW_KEEPRATIO) # For the visual animation
+    if not is_visualization_off:
+        # Parameters for visualization only! These parameters do not affect the results!
+        window_name = "Assessment animation"
+        thick = 2
+        bbox1_p, bbox2_p = None, None
+        cv.namedWindow(window_name, cv.WINDOW_KEEPRATIO)
 
     # Use video and load a specific key point
     t = None
@@ -607,16 +609,17 @@ def assess_keypoint(v, kr, kss):
                 bbox1_p, bbox2_p = None, None
 
         # Show animation of the tracker
-        frame_aug = draw_bb_in_frame(im1, im2,
-                                     bbox1_gt, bbox1_p,
-                                     bbox2_gt, bbox2_p,
-                                     is_difficult,
-                                     thick)
-        cv.imshow(window_name, frame_aug)
-        cv.waitKey(1)
+        if not is_visualization_off:
+            frame_aug = draw_bb_in_frame(im1, im2,
+                                         bbox1_gt, bbox1_p,
+                                         bbox2_gt, bbox2_p,
+                                         is_difficult,
+                                         thick)
+            cv.imshow(window_name, frame_aug)
+            cv.waitKey(1)
 
 
-def calculate_results_for_video(rank, case_sample_path, is_to_rectify, config_results):
+def calculate_results_for_video(rank, case_sample_path, is_to_rectify, config_results, is_visualization_off):
     # Load video
     v = Video(case_sample_path, is_to_rectify)
 
@@ -633,7 +636,7 @@ def calculate_results_for_video(rank, case_sample_path, is_to_rectify, config_re
                         config_results["iou_threshold"],
                         v.Q)
         kss = KptSubSequences(terminator_frame)
-        assess_keypoint(v, kr, kss) # Assess a bounding-box throughout an entire video
+        assess_keypoint(v, kr, kss, is_visualization_off) # Assess a bounding-box throughout an entire video
         rank.add_all_kpt_ss(kss)
         acc, rob, err_2d, err_3d = kr.get_full_metric()
         stats.append_stats(acc, rob, err_2d, err_3d)
@@ -657,7 +660,7 @@ def print_results(str_start, acc, rob, err_2d, err_3d):
                                                                                         err_3d))
 
 
-def calculate_results(config, valid_or_test):
+def calculate_results(config, valid_or_test, is_visualization_off):
     config_results = config["results"]
     is_to_rectify = config["is_to_rectify"]
     config_data = config[valid_or_test]
@@ -677,7 +680,8 @@ def calculate_results(config, valid_or_test):
                 acc, rob, err_2d, err_3d = calculate_results_for_video(rank,
                                                                        cs.case_sample_path,
                                                                        is_to_rectify,
-                                                                       config_results)
+                                                                       config_results,
+                                                                       is_visualization_off)
                 print_results("\t\t{}".format(cs.case_sample_path), acc, rob, err_2d, err_3d)
                 stats_case.append_stats(acc, rob, err_2d, err_3d)
             mean_acc, mean_rob, mean_err_2d, mean_err_3d = stats_case.get_stats_mean()
@@ -692,6 +696,6 @@ def calculate_results(config, valid_or_test):
 
 
 # function called from `main.py`!
-def evaluate_method(config):
-    calculate_results(config, "validation")
-    calculate_results(config, "test")
+def evaluate_method(config, is_visualization_off):
+    calculate_results(config, "validation", is_visualization_off)
+    calculate_results(config, "test", is_visualization_off)

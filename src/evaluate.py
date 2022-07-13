@@ -387,7 +387,7 @@ class KptResults:
         self.err_list_3d = []
         self.robustness_frames_counter = 0
         self.n_excessive_frames = 0
-        self.n_visible = 0
+        self.n_visible_and_not_diff = 0
         self.n_misses_successive = 0
 
 
@@ -397,12 +397,13 @@ class KptResults:
         """
         if bbox1_gt is None or bbox2_gt is None:
             # Bbox is not visible in one of the images
-            if bbox1_p is not None or bbox2_p is not None:
+            if (bbox1_p is not None and bbox1_gt is None) or\
+               (bbox2_p is not None and bbox2_gt is None):
                 # If the tracker made a prediction when the target is not visible
                 self.n_excessive_frames += 1
             return False, "ignore" # "ignore" since the bbox is not visible
         # Otherwise, ground truth is visible
-        self.n_visible += 1
+        self.n_visible_and_not_diff += 1
 
         if bbox1_p is not None and bbox2_p is not None:
             # Tracker predicted the position of the bounding boxes
@@ -498,15 +499,15 @@ class KptResults:
 
     def get_accuracy_score(self):
         acc = 1.0
-        if self.n_visible > 0:
-            acc = np.sum(self.iou_list) / self.n_visible
+        if self.n_visible_and_not_diff > 0:
+            acc = np.sum(self.iou_list) / self.n_visible_and_not_diff
         assert(acc >= 0.0 and acc <= 1.0)
         return acc
 
 
     def get_robustness_score(self):
         rob = 1.0
-        denominator = self.n_visible + self.n_excessive_frames
+        denominator = self.n_visible_and_not_diff + self.n_excessive_frames
         if denominator > 0:
             rob = self.robustness_frames_counter / denominator
         assert(rob >= 0.0 and rob <= 1.0)

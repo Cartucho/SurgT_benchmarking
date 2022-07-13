@@ -176,21 +176,27 @@ class Statistics:
         self.rob_list = []
         self.err_list_2d = []
         self.err_list_3d = []
+        self.n_frames_list = []
+        self.n_frames_rob_list = []
 
 
-    def append_stats(self, acc, rob, err_2d, err_3d):
+    def append_stats(self, acc, rob, err_2d, err_3d, n_frames, n_frames_rob):
         self.acc_list.append(acc)
         self.rob_list.append(rob)
         self.err_list_2d.append(err_2d)
         self.err_list_3d.append(err_3d)
+        self.n_frames_list.append(n_frames)
+        self.n_frames_rob_list.append(n_frames_rob)
 
 
-    def get_stats_mean(self):
-        mean_acc = np.mean(self.acc_list)
-        mean_rob = np.mean(self.rob_list)
-        mean_err_2d = np.mean(self.err_list_2d)
-        mean_err_3d = np.mean(self.err_list_3d)
-        return mean_acc, mean_rob, mean_err_2d, mean_err_3d
+    def get_stats_weighted_average(self):
+        avg_acc = np.ma.average(self.acc_list, weights=self.n_frames_list)
+        avg_rob = np.ma.average(self.rob_list, weights=self.n_frames_rob_list)
+        avg_err_2d = np.ma.average(self.err_list_2d, weights=self.n_frames_list)
+        avg_err_3d = np.ma.average(self.err_list_3d, weights=self.n_frames_list)
+        total_frames = sum(self.n_frames_list)
+        total_frames_rob = sum(self.n_frames_rob_list)
+        return avg_acc, avg_rob, avg_err_2d, avg_err_3d, total_frames, total_frames_rob
 
 
 class EAO_Rank:
@@ -522,7 +528,9 @@ class KptResults:
         rob = self.get_robustness_score()
         err_2d = np.mean(self.err_list_2d)
         err_3d = np.mean(self.err_list_3d)
-        return acc, rob, err_2d, err_3d
+        n_frames = self.n_visible_and_not_diff
+        n_frames_rob = n_frames + self.n_excessive_frames
+        return acc, rob, err_2d, err_3d, n_frames, n_frames_rob
 
 
 def get_bbox_corners(bbox):
@@ -639,8 +647,8 @@ def calculate_results_for_video(rank, case_sample_path, is_to_rectify, config_re
         kss = KptSubSequences(terminator_frame)
         assess_keypoint(v, kr, kss, is_visualization_off) # Assess a bounding-box throughout an entire video
         rank.add_all_kpt_ss(kss)
-        acc, rob, err_2d, err_3d = kr.get_full_metric()
-        stats.append_stats(acc, rob, err_2d, err_3d)
+        acc, rob, err_2d, err_3d, n_frames, n_frames_rob = kr.get_full_metric()
+        stats.append_stats(acc, rob, err_2d, err_3d, n_frames, n_frames_rob)
         # Re-start video for assessing the next keypoint
         v.video_restart()
 
@@ -650,7 +658,7 @@ def calculate_results_for_video(rank, case_sample_path, is_to_rectify, config_re
     # Stop video after assessing all the keypoints of that specific video
     v.stop_video()
 
-    return stats.get_stats_mean()
+    return stats.get_stats_weighted_average()
 
 
 def print_results(str_start, acc, rob, err_2d, err_3d):
@@ -678,22 +686,22 @@ def calculate_results(config, valid_or_test, is_visualization_off):
             print("\n\t{}".format(case.case_id))
             # Go through case sample (in other words, each video)
             for cs in case.case_samples:
-                acc, rob, err_2d, err_3d = calculate_results_for_video(rank,
-                                                                       cs.case_sample_path,
-                                                                       is_to_rectify,
-                                                                       config_results,
-                                                                       is_visualization_off)
+                acc, rob, err_2d, err_3d, n_frms, n_frms_rob = calculate_results_for_video(rank,
+                                                                                           cs.case_sample_path,
+                                                                                           is_to_rectify,
+                                                                                           config_results,
+                                                                                           is_visualization_off)
                 print_results("\t\t{}".format(cs.case_sample_path), acc, rob, err_2d, err_3d)
-                stats_case.append_stats(acc, rob, err_2d, err_3d)
-            mean_acc, mean_rob, mean_err_2d, mean_err_3d = stats_case.get_stats_mean()
-            print_results("\t\tMean results, ", mean_acc, mean_rob, mean_err_2d, mean_err_3d)
-            stats_case_all.append_stats(mean_acc, mean_rob, mean_err_2d, mean_err_3d)
+                stats_case.append_stats(acc, rob, err_2d, err_3d, n_frms, n_frms_rob)
+            case_acc, case_rob, case_err_2d, case_err_3d, case_n_frms, case_n_frms_rob = stats_case.get_stats_weighted_average()
+            print_results("\t\tWeighted average, ", case_acc, case_rob, case_err_2d, case_err_3d)
+            stats_case_all.append_stats(case_acc, case_rob, case_err_2d, case_err_3d, case_n_frms, case_n_frms_rob)
         # Calculate the statistics for all cases together
-        mean_acc, mean_rob, mean_err_2d, mean_err_3d = stats_case_all.get_stats_mean()
+        final_acc, final_rob, final_err_2d, final_err_3d, _, _ = stats_case_all.get_stats_weighted_average()
         print('{} final score:'.format(valid_or_test).upper())
         #rank.calculate_N_min_and_N_high() # Used by callenge organizers to get N_min and N_max for each dataset
         eao = rank.calculate_eao_score()
-        print_results("\tEAO:{:.3f}".format(eao), mean_acc, mean_rob, mean_err_2d, mean_err_3d)
+        print_results("\tEAO:{:.3f}".format(eao), final_acc, final_rob, final_err_2d, final_err_3d)
 
 
 # function called from `main.py`!

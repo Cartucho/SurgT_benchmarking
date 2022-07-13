@@ -34,7 +34,7 @@ def test_robustness():
     iou_threshold = 0.1
     kr = KptResults(n_misses_allowed, iou_threshold)
     kr.robustness_frames_counter = 25
-    kr.n_visible = 40
+    kr.n_visible_and_not_diff = 40
     kr.n_excessive_frames = 10
     rob = kr.get_robustness_score()
     assert(rob == 0.5) # 25 / (40 + 10)
@@ -45,7 +45,7 @@ def test_accuracy():
     iou_threshold = 0.1
     kr = KptResults(n_misses_allowed, iou_threshold)
     kr.iou_list = [1.0, 1.0, 0.5, 0.5]
-    kr.n_visible = 10
+    kr.n_visible_and_not_diff = 10
     acc = kr.get_accuracy_score()
     assert(acc == 0.3) # 3. / 10
 

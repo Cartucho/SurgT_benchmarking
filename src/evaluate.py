@@ -19,11 +19,11 @@ class Video:
         self.im_width = video_info["resolution"]["width"]
         # Load rectification data
         self.is_to_rectify = is_to_rectify
+        self.calib_path = os.path.join(case_sample_path, "calibration.yaml")
+        utils.is_path_file(self.calib_path)
+        self.load_calib_data()
+        self.stereo_rectify()
         if is_to_rectify:
-            self.calib_path = os.path.join(case_sample_path, "calibration.yaml")
-            utils.is_path_file(self.calib_path)
-            self.load_calib_data()
-            self.stereo_rectify()
             self.get_rectification_maps()
         # Load video
         name_video = video_info["name_video"]

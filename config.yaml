@@ -1,4 +1,4 @@
-is_to_rectify: True # We assumed that the methods use rectified images as input!
+is_to_rectify: True # Set to `False` if the videos are already rectified.
 results:
     dir: "results"
     n_misses_allowed: 10

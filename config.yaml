@@ -8,8 +8,8 @@ validation:
     is_to_evaluate: True # Set to True to calculate the `validation` results!
     dir: "data"
     subdir: "validation"
-    N_min: 144 # Frame n for the EAO, N_low = mean(sub_seq_lengths) - std(sub_seq_lengths)
-    N_max: 787 # Frame n for the EAO, N_high = mean(sub_seq_lengths) + std(sub_seq_lengths)
+    N_min: 150 # Frame n for the EAO, N_low = mean(sub_seq_lengths) - std(sub_seq_lengths)
+    N_max: 829 # Frame n for the EAO, N_high = mean(sub_seq_lengths) + std(sub_seq_lengths)
     anchors: {"case_1":
                {
                  "1": [[0,50,100,150,200,250]], # One list of anchors [] per bounding-box

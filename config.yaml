@@ -10,6 +10,28 @@ validation:
     subdir: "validation"
     N_min: 144 # Frame n for the EAO, N_low = mean(sub_seq_lengths) - std(sub_seq_lengths)
     N_max: 787 # Frame n for the EAO, N_high = mean(sub_seq_lengths) + std(sub_seq_lengths)
+    anchors: {"case_1":
+               {
+                 "1": [[0,50,100,150,200,250]], # One list of anchors [] per bounding-box
+                 "2": [[0,50,100,150,200,250,300,350,400,450,500,550,600,650,700,750,800,850,900,950,1000,1050,1100,1150,1200,1250,1300,1350,1400,1450,1500,1550]],
+                 "3": [[0,50,100,158,200,250,300,350,400]],
+                 "4": [[0,50,100,150,200,250,300,350,400,450,500,550,600,650,700,750,800]],
+               },
+            "case_2":
+               {
+                 "1": [[0,50,100,150,200,250,300,357,400,622,650,750]],
+                 "2": [[0,50,100,150,200,250,300,350,400,512,550,600,650,700,750]],
+                 "3": [[0,50,100,150,225,309,450,500,552,600,650,700,750]],
+                 "4": [[2,150,200,250,300,364,400,450,500,562,600,650,700,750,800]],
+               },
+            "case_3":
+               {
+                 "1": [[0,50,150,200,250,462,600,650,700,750,800,859]],
+                 "2": [[0,50,100,150,200,250,300,350,400,450,500,550,600,650,700,750,800,850]],
+                 "3": [[100,150,365,400,450,500,550,600,650,700]],
+                 "4": [[0,166,200,256,300,350,400,450,550,750]],
+               }
+           }
     cases: {"case_1":
                {
                    "1":
@@ -111,6 +133,13 @@ test: # This same code will be used to get the final results at the end of the c
     subdir: "test"
     N_min: None # Frame n for the EAO, N_low = mean(sub_seq_lengths) - std(sub_seq_lengths)
     N_max: None # Frame n for the EAO, N_high = mean(sub_seq_lengths) + std(sub_seq_lengths)
+    anchors: {"case_1": None,
+              "case_2": None,
+              "case_3": None,
+              "case_4": None,
+              "case_5": None,
+              "case_6": None,
+           }
     cases: {"case_1": None, # Links hidden until the challenge's end
             "case_2": None, # Links hidden until the challenge's end
             "case_3": None, # Links hidden until the challenge's end

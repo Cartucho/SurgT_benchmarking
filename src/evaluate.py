@@ -569,6 +569,8 @@ def assess_anchor(v, anch, ar, kss, is_visualization_off):
         frame, frame_counter = v.get_frame()
         if frame_counter < anch:
             continue # skip frames before anchor
+        if frame_counter > kss.TERMINATOR_FRAME and is_tracker_stopped:
+            break
         if frame is None:
             break
         im1, im2 = v.split_frame(frame)

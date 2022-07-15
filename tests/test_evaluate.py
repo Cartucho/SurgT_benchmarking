@@ -58,47 +58,48 @@ def test_EAO_Rank():
     assert(eao == 0.0)
     # Single sequence
     ss_list = [[1., 1., 1.]]
-    rank = EAO_Rank(0, len(ss_list))
-    rank.all_ss = ss_list
-    rank.all_ss_len = [len(ss_list)]
-    rank.all_ss_len_max = len(ss_list)
+    rank = EAO_Rank(0, len(ss_list[0]))
+    rank.final_ss = ss_list
+    rank.all_ss_len_max = len(ss_list[0])
     eao = rank.calculate_eao_score()
     assert(eao == 1.0)
     ss_list = [[1., "ignore", 1.]]
-    rank = EAO_Rank(0, len(ss_list))
-    rank.all_ss = ss_list
-    rank.all_ss_len = [len(ss_list)]
-    rank.all_ss_len_max = len(ss_list)
+    rank = EAO_Rank(0, len(ss_list[0]))
+    rank.final_ss = ss_list
+    rank.all_ss_len_max = len(ss_list[0])
     eao = rank.calculate_eao_score()
     assert(eao == 1.0)
     # Multiple sequences
     ss_list = [[1.],
                [0.]]
     rank = EAO_Rank(0, len(ss_list[0]))
-    rank.all_ss = ss_list
-    rank.all_ss_len = [1, 1]
+    rank.final_ss = ss_list
     rank.all_ss_len_max = 1
     eao = rank.calculate_eao_score()
     assert(eao == 0.5)
     ss_list = [["ignore"],
                [0.7215]]
     rank = EAO_Rank(0, len(ss_list[0]))
-    rank.all_ss = ss_list
-    rank.all_ss_len = [1, 1]
+    rank.final_ss = ss_list
     rank.all_ss_len_max = 1
     eao = rank.calculate_eao_score()
     assert(eao == 0.7215)
+    ss_list = [[1.0],
+               [0.75],
+               [0.5],
+               [0.25],
+               [0.0]]
+    rank = EAO_Rank(0, len(ss_list[0]))
+    rank.final_ss = ss_list
+    rank.all_ss_len_max = 1
+    eao = rank.calculate_eao_score()
+    assert(eao == 0.5)
     # Test curve
     ss_list = [[0.3605, 0.5, "ignore", 0.],
                [0.0000, 0.0,       0., 0.7215]]
-    rank = EAO_Rank(0, len(ss_list[1]))
-    rank.all_ss = ss_list
-    rank.all_ss_len = [4, 4]
-    rank.all_ss_len_max = 4
-    rank.calculate_eao_curve()
-    assert(rank.eao_curve[0] == 0.18025)
-    assert(rank.eao_curve[1] == 0.25)
-    assert(rank.eao_curve[2] == 0.0)
-    assert(rank.eao_curve[3] == 0.36075)
-    eao = rank.calculate_eao_score()
-    assert(eao == 0.19775)
+    rank = EAO_Rank(0, len(ss_list[0]))
+    eao_curve = rank.calculate_eao_curve(ss_list, len(ss_list[0]))
+    assert(eao_curve[0] == 0.18025)
+    assert(eao_curve[1] == 0.25)
+    assert(eao_curve[2] == 0.0)
+    assert(eao_curve[3] == 0.36075)

@@ -3,10 +3,12 @@ import yaml
 import dload
 
 class CaseSample:
-    def __init__(self, case_id, case_sample_path, case_sample_links):
+    def __init__(self, case_id, case_sample_path, case_sample_links, anchors):
         self.case_id = case_id
         self.case_sample_path = case_sample_path
         self.case_sample_links = case_sample_links
+        self.anchors = anchors
+
 
     def download_case_sample_data(self):
         print("\t{}".format(self.case_sample_path))
@@ -18,6 +20,7 @@ class CaseSample:
             else:
                 print("\t\t{}: DOWNLOADING...".format(file_path))
                 dload.save(file_link, file_path)
+
 
 class Case:
     def __init__(self, case_id):
@@ -51,6 +54,7 @@ def make_dir_if_needed(dir_path):
 
 def get_cases(config_data):
     path = os.path.join(config_data["dir"], config_data["subdir"])
+    anchor_data = config_data["anchors"]
     cases = []
     # Go through each of the cases
     for case_id, case_data in config_data["cases"].items():
@@ -58,8 +62,9 @@ def get_cases(config_data):
         path_case = os.path.join(path, case_id)
         # Go through each of the samples of each case
         for sample_number, sample_links in case_data.items():
+            anchors = anchor_data[case_id][sample_number]
             path_case_sample = os.path.join(path_case, sample_number)
-            cs = CaseSample(case_id, path_case_sample, sample_links)
+            cs = CaseSample(case_id, path_case_sample, sample_links, anchors)
             case.case_samples.append(cs)
         cases.append(case)
     return cases

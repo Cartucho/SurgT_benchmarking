@@ -527,9 +527,9 @@ class AnchorResults:
         rob = self.get_robustness_score()
         err_2d = np.mean(self.err_list_2d)
         err_3d = np.mean(self.err_list_3d)
-        n_frames = self.n_visible_and_not_diff
-        n_frames_rob = n_frames + self.n_excessive_frames
-        return acc, rob, err_2d, err_3d, n_frames, n_frames_rob
+        n_frames_acc = len(self.iou_list)
+        n_frames_rob = self.n_visible_and_not_diff + self.n_excessive_frames
+        return acc, rob, err_2d, err_3d, n_frames_acc, n_frames_rob
 
 
 def get_bbox_corners(bbox):

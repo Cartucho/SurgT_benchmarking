@@ -210,17 +210,20 @@ class EAO_Rank:
 
     def add_kpt_ss(self, kss):
         """
-            Append merged, so that each video contributes with a single sub-sequence
-              this is to avoid having longer videos having a too big impact in the final score.
+            Append a single mean IoU score, instead of all the sub-sequences of a keypoint.
+             The reason is that we want to avoid having a longer videos (with many sub-sequences),
+             having a too big impact in the final EAO score. Therefore, we can first merge all the
+             sub-sequences. This way, we garantee that each keypoint per video, contributes with a single sub-sequence.
         """
         all_kps_ss = []
         all_kps_ss_len_max = 0
         for ss in kss.kpt_all_ss:
             all_kps_ss.append(ss.ss_iou_scores)
             ss_len = len(ss.ss_iou_scores)
-            self.all_ss_len.append(ss_len)
+            self.all_ss_len.append(ss_len) # Still, we want to keep track of all the individual ss_len, for calculating N_min and N_max
             all_kps_ss_len_max = max(all_kps_ss_len_max, ss_len)
         self.all_ss_len_max = max(self.all_ss_len_max, all_kps_ss_len_max)
+        # Calculate the mean IoU scores, to create a single ss to used in the final EAO score
         mean_kpt_iou_scores = self.calculate_eao_curve(all_kps_ss, all_kps_ss_len_max)
         #print("Case sample: {}, Kpt_id: {}, Mean IoU: {}".format(kss.case_sample_path, kss.kpt_id, mean_kpt_iou_scores))
         self.final_ss.append(mean_kpt_iou_scores)

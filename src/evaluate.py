@@ -245,7 +245,6 @@ class EAO_Rank:
     def calculate_eao_curve(self, all_ss, all_ss_len_max):
         eao_curve = []
         for i in range(all_ss_len_max):
-            score = 0
             ss_sum = 0.0
             ss_counter = 0
             for ss in all_ss:

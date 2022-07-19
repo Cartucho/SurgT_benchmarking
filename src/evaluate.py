@@ -505,7 +505,7 @@ class AnchorResults:
     def get_accuracy_score(self):
         acc = 1.0
         if self.n_visible_and_not_diff > 0:
-            acc = np.sum(self.iou_list) / self.n_visible_and_not_diff
+            acc = np.mean(self.iou_list)
         assert(acc >= 0.0 and acc <= 1.0)
         return acc
 

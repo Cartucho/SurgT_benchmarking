@@ -226,7 +226,7 @@ class EAO_Rank:
         self.final_ss.append(mean_kpt_iou_scores)
 
 
-    def calculate_N_min_and_N_high(self):
+    def calculate_N_min_and_N_max(self):
         ss_len_mean = np.mean(self.all_ss_len)
         ss_len_std = np.std(self.all_ss_len)
         N_min = max(1, int(round(ss_len_mean - ss_len_std)))
@@ -725,7 +725,7 @@ def calculate_results(config, valid_or_test, is_visualization_off):
         # Calculate the statistics for all cases together
         final_acc, final_rob, final_err_2d, final_err_3d, _, _ = stats_case_all.get_stats_weighted_average()
         print('{} final score:'.format(valid_or_test).upper())
-        #rank.calculate_N_min_and_N_high() # Used by callenge organizers to get N_min and N_max for each dataset
+        #rank.calculate_N_min_and_N_max() # Used by callenge organizers to get N_min and N_max for each dataset
         eao = rank.calculate_eao_score()
         print_results("\tEAO:{:.3f}".format(eao), final_acc, final_rob, final_err_2d, final_err_3d)
 

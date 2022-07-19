@@ -425,6 +425,15 @@ class AnchorResults:
         return False, iou
 
 
+    def use_only_accuracy_before_failure(self):
+        """
+            Delete the last `n_misses_allowed + 1` scores, since tracker failed,
+              so that the tracking failure does not affect the accuracy score.
+        """
+        n_scores_to_delete = self.n_misses_allowed + 1
+        self.iou_list = self.iou_list[:-n_scores_to_delete]
+
+
     def get_bbox_centr(self, bbox):
         centr_u = int(bbox[0] + (bbox[2] / 2))
         centr_v = int(bbox[1] + (bbox[3] / 2))
@@ -563,13 +572,13 @@ def assess_anchor(v, anch, ar, kss, is_visualization_off):
 
     # Use video and load a specific key point
     t = None
-    is_tracker_stopped = False
+    is_tracker_failed = False
     while v.cap.isOpened():
         # Get data of new frame
         frame, frame_counter = v.get_frame()
         if frame_counter < anch:
             continue # skip frames before anchor
-        if frame_counter > kss.TERMINATOR_FRAME and is_tracker_stopped:
+        if frame_counter > kss.TERMINATOR_FRAME and is_tracker_failed:
             break
         if frame is None:
             break
@@ -590,10 +599,10 @@ def assess_anchor(v, anch, ar, kss, is_visualization_off):
             kss.add_iou_score("ignore", frame_counter)
         else:
             ar.n_visible_and_not_diff += 1
-            if is_tracker_stopped:
+            if is_tracker_failed:
                 kss.add_iou_score(0, frame_counter)
 
-        if not is_tracker_stopped:
+        if not is_tracker_failed:
             # Update the tracker
             bbox1_p, bbox2_p = t.tracker_update(im1, im2)
             if is_difficult:
@@ -606,10 +615,11 @@ def assess_anchor(v, anch, ar, kss, is_visualization_off):
                     # If the tracker made a prediction when the target is not visible
                     ar.n_excessive_frames += 1
             else:
-                stop_flag, iou = ar.calculate_bbox_metrics(bbox1_gt, bbox1_p, bbox2_gt, bbox2_p)
+                tracking_failure_flag, iou = ar.calculate_bbox_metrics(bbox1_gt, bbox1_p, bbox2_gt, bbox2_p)
                 kss.add_iou_score(iou, frame_counter)
-                if stop_flag:
-                    is_tracker_stopped = True
+                if tracking_failure_flag:
+                    ar.use_only_accuracy_before_failure()
+                    is_tracker_failed = True
                     if not is_visualization_off:
                         bbox1_p, bbox2_p = None, None
 

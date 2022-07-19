@@ -345,18 +345,18 @@ class KptSubSequences:
         IoU scores:    [1, 0.9...0.5, i, i, i... i,  0.4  0.3]
                                     | i = `ignore`|
 
-        (d) If a tracker is stopped the rest the previous sub-sequence is padded with zeros.
+        (d) If a tracker fails the rest the previous sub-sequence is padded with zeros.
 
               (1) first anchor
                        |
                        |            (2) tracker
-                       |                stopped
+                       |                failure
                        |                  |
         video   0      v                  v                 999
         frames: |------x------------------x------------------>
                        |                  |
                        |------------------x------------------> sub-sequence 1
-        IoU scores 1:  [1,0.8...0.02, 0.01, 0, 0,..., 0, 0, 0]
+        IoU scores 1:  [1,0.8...0.003,0.002, 0, 0,..., 0, 0, 0]
                                           |   zero padding   |
 
 

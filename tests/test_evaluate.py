@@ -1,53 +1,53 @@
 import pytest
-from src.evaluate import KptResults, EAO_Rank
+from src.evaluate import AnchorResults, EAO_Rank
 
 
 def test_iou():
     n_misses_allowed = 10
     iou_threshold = 0.1
-    kr = KptResults(n_misses_allowed, iou_threshold)
+    ar = AnchorResults(n_misses_allowed, iou_threshold)
     # Empty intersection
     bbox_gt = (0, 0, 2, 2)
     bbox_p = (5, 5, 2, 2)
-    assert(kr.get_iou(bbox_gt, bbox_p) == 0.0)
+    assert(ar.get_iou(bbox_gt, bbox_p) == 0.0)
     bbox_gt = (0, 0, 2, 2)
     bbox_p = (2, 2, 2, 2)
-    assert(kr.get_iou(bbox_gt, bbox_p) == 0.0)
+    assert(ar.get_iou(bbox_gt, bbox_p) == 0.0)
     # Full intersection
     bbox_gt = (0, 0, 2, 2)
     bbox_p = (0, 0, 2, 2)
-    assert(kr.get_iou(bbox_gt, bbox_p) == 1.0)
+    assert(ar.get_iou(bbox_gt, bbox_p) == 1.0)
     bbox_gt = (5, 5, 10, 10)
     bbox_p = (5, 5, 10, 10)
-    assert(kr.get_iou(bbox_gt, bbox_p) == 1.0)
+    assert(ar.get_iou(bbox_gt, bbox_p) == 1.0)
     # Partial intersection
     bbox_gt = (0, 0, 2, 2)
     bbox_p = (1, 1, 2, 2)
-    assert(kr.get_iou(bbox_gt, bbox_p) == pytest.approx(0.142, 0.01))
+    assert(ar.get_iou(bbox_gt, bbox_p) == pytest.approx(0.142, 0.01))
     bbox_gt = (0, 0, 2, 2)
     bbox_p = (1, 0, 2, 2)
-    assert(kr.get_iou(bbox_gt, bbox_p) == pytest.approx(0.333, 0.01))
+    assert(ar.get_iou(bbox_gt, bbox_p) == pytest.approx(0.333, 0.01))
 
 
 def test_robustness():
     n_misses_allowed = 10
     iou_threshold = 0.1
-    kr = KptResults(n_misses_allowed, iou_threshold)
-    kr.robustness_frames_counter = 25
-    kr.n_visible_and_not_diff = 40
-    kr.n_excessive_frames = 10
-    rob = kr.get_robustness_score()
+    ar = AnchorResults(n_misses_allowed, iou_threshold)
+    ar.robustness_frames_counter = 25
+    ar.n_visible_and_not_diff = 40
+    ar.n_excessive_frames = 10
+    rob = ar.get_robustness_score()
     assert(rob == 0.5) # 25 / (40 + 10)
 
 
 def test_accuracy():
     n_misses_allowed = 10
     iou_threshold = 0.1
-    kr = KptResults(n_misses_allowed, iou_threshold)
-    kr.iou_list = [1.0, 1.0, 0.5, 0.5]
-    kr.n_visible_and_not_diff = 10
-    acc = kr.get_accuracy_score()
-    assert(acc == 0.3) # 3. / 10
+    ar = AnchorResults(n_misses_allowed, iou_threshold)
+    ar.iou_list = [1.0, 1.0, 0.5, 0.5]
+    ar.n_visible_and_not_diff = 4
+    acc = ar.get_accuracy_score()
+    assert(acc == 0.75)
 
 
 def test_EAO_Rank():

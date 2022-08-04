@@ -144,10 +144,9 @@ class Video:
         if self.cap.isOpened():
             ret, frame = self.cap.read()
             if ret:
-                self.frame_counter += 1
-                return frame, self.frame_counter
+                return frame
         self.cap.release()
-        return None, self.frame_counter
+        return None
 
 
     def stop_video(self):
@@ -173,30 +172,36 @@ class Video:
 class Statistics:
     def __init__(self):
         self.acc_list = []
-        self.rob_list = []
+        self.rob_list_2d = []
         self.err_list_2d = []
+        self.rob_list_3d = []
         self.err_list_3d = []
-        self.n_frames_list = []
+        self.n_frames_list_2d = []
         self.n_frames_rob_list = []
+        self.n_frames_list_3d = []
 
 
-    def append_stats(self, acc, rob, err_2d, err_3d, n_frames, n_frames_rob):
+    def append_stats(self, acc, rob_2d, err_2d, rob_3d, err_3d, n_f_2d, n_f_rob, n_f_3d):
         self.acc_list.append(acc)
-        self.rob_list.append(rob)
+        self.rob_list_2d.append(rob_2d)
         self.err_list_2d.append(err_2d)
+        self.rob_list_3d.append(rob_3d)
         self.err_list_3d.append(err_3d)
-        self.n_frames_list.append(n_frames)
-        self.n_frames_rob_list.append(n_frames_rob)
+        self.n_frames_list_2d.append(n_f_2d)
+        self.n_frames_rob_list.append(n_f_rob)
+        self.n_frames_list_3d.append(n_f_3d)
 
 
     def get_stats_weighted_average(self):
-        avg_acc = np.ma.average(self.acc_list, weights=self.n_frames_list)
-        avg_rob = np.ma.average(self.rob_list, weights=self.n_frames_rob_list)
-        avg_err_2d = np.ma.average(self.err_list_2d, weights=self.n_frames_list)
-        avg_err_3d = np.ma.average(self.err_list_3d, weights=self.n_frames_list)
-        total_frames = sum(self.n_frames_list)
-        total_frames_rob = sum(self.n_frames_rob_list)
-        return avg_acc, avg_rob, avg_err_2d, avg_err_3d, total_frames, total_frames_rob
+        avg_acc = np.ma.average(self.acc_list, weights=self.n_frames_list_2d)
+        avg_rob_2d = np.ma.average(self.rob_list_2d, weights=self.n_frames_rob_list)
+        avg_err_2d = np.ma.average(self.err_list_2d, weights=self.n_frames_list_2d)
+        avg_rob_3d = np.ma.average(self.rob_list_3d, weights=self.n_frames_rob_list)
+        avg_err_3d = np.ma.average(self.err_list_3d, weights=self.n_frames_list_3d)
+        total_f_2d = sum(self.n_frames_list_2d)
+        total_f_rob = sum(self.n_frames_rob_list)
+        total_f_3d = sum(self.n_frames_list_3d)
+        return avg_acc, avg_rob_2d, avg_err_2d, avg_rob_3d, avg_err_3d, total_f_2d, total_f_rob, total_f_3d
 
 
 class EAO_Rank:
@@ -386,17 +391,20 @@ class KptSubSequences:
 
 
 class AnchorResults:
-    def __init__(self, n_misses_allowed, iou_threshold, Q=None):
+    def __init__(self, n_misses_allowed, iou_threshold, err_3d_threshold, Q=None):
         self.n_misses_allowed = n_misses_allowed
         self.iou_threshold = iou_threshold
+        self.err_3d_threshold = err_3d_threshold
         self.Q = Q
         self.iou_list = []
         self.err_list_2d = []
         self.err_list_3d = []
-        self.robustness_frames_counter = 0
+        self.rob_frames_counter_2d = 0
+        self.rob_frames_counter_3d = 0
         self.n_excessive_frames = 0
         self.n_visible_and_not_diff = 0
-        self.n_misses_successive = 0
+        self.n_misses_successive_2d = 0
+        self.n_misses_successive_3d = 0
 
 
     def calculate_bbox_metrics(self, bbox1_gt, bbox1_p, bbox2_gt, bbox2_p):
@@ -410,30 +418,34 @@ class AnchorResults:
             iou2 = self.get_iou(bbox2_gt, bbox2_p)
             iou = np.mean([iou1, iou2])
             self.iou_list.append(iou)
+            self.calculate_l2_norm_errors(bbox1_gt, bbox1_p, bbox2_gt, bbox2_p)
             if iou1 > self.iou_threshold and iou2 > self.iou_threshold:
                 # Enough overlap
-                self.robustness_frames_counter += 1
-                self.calculate_l2_norm_errors(bbox1_gt, bbox1_p, bbox2_gt, bbox2_p)
-                self.n_misses_successive = 0
+                self.rob_frames_counter_2d += 1
+                self.n_misses_successive_2d = 0
             else:
                 # Not enough overlap
-                self.n_misses_successive += 1
+                self.n_misses_successive_2d += 1
         else:
             # Tracker failed to predict the bounding boxes
-            self.n_misses_successive += 1
-        if self.n_misses_successive > self.n_misses_allowed:
-            self.n_misses_successive = 0
+            self.n_misses_successive_2d += 1
+        n_misses_successive = max(self.n_misses_successive_2d, self.n_misses_successive_3d)
+        if n_misses_successive > self.n_misses_allowed:
+            self.n_misses_successive_2d = 0
+            self.n_misses_successive_3d = 0
             return True, iou
         return False, iou
 
 
-    def use_only_accuracy_before_failure(self):
+    def use_scores_before_failure(self):
         """
             Delete the last `n_misses_allowed + 1` scores, since tracker failed,
-              so that the tracking failure does not affect the accuracy score.
+              so that the tracking failure does not affect the scores.
         """
         n_scores_to_delete = self.n_misses_allowed + 1
         self.iou_list = self.iou_list[:-n_scores_to_delete]
+        self.err_list_2d = self.err_list_2d[:-n_scores_to_delete]
+        self.err_list_3d = self.err_list_3d[:-n_scores_to_delete]
 
 
     def get_bbox_centr(self, bbox):
@@ -474,12 +486,21 @@ class AnchorResults:
         if disp_p > 0 and disp_gt > 0:
             """
              I am assuming that `centr_bbox1_p` and `centr_bbox2_p` have the same `v`,
-             which should be the case for a stereo Tracker that works with rectified images as input. 
+             which should be the case for a stereo Tracker that works with rectified images as input.
             """
             centr_3d_p = self.get_3d_pt(disp_p, centr_2d_p_1[0], centr_2d_p_1[1])
             centr_3d_gt = self.get_3d_pt(disp_gt, centr_2d_gt_1[0], centr_2d_gt_1[1])
             err_3d = self.get_l2_norm(centr_3d_p, centr_3d_gt)
-            self.err_list_3d.append(err_3d)
+            if err_3d <= self.err_3d_threshold:
+                """ Small disparities could lead to very large 3D errors,
+                    therefore we use a threshold to filter high errors + a robustness_3d score.
+                """
+                self.rob_frames_counter_3d += 1
+                self.n_misses_successive_3d = 0
+                self.err_list_3d.append(err_3d)
+                return
+        self.n_misses_successive_3d += 1
+        self.err_list_3d.append("failed_3d_threshold")
 
 
     def get_iou(self, bbox_gt, bbox_p):
@@ -512,11 +533,11 @@ class AnchorResults:
         return acc
 
 
-    def get_robustness_score(self):
+    def get_robustness_score(self, rob_frames_counter):
         rob = 1.0
         denominator = self.n_visible_and_not_diff + self.n_excessive_frames
         if denominator > 0:
-            rob = self.robustness_frames_counter / denominator
+            rob = rob_frames_counter / denominator
         assert(rob >= 0.0 and rob <= 1.0)
         return rob
 
@@ -525,13 +546,17 @@ class AnchorResults:
         """
         Only happens after all frames are processed, end of video for-loop!
         """
+        assert(len(self.iou_list) == len(self.err_list_2d))
         acc = self.get_accuracy_score()
-        rob = self.get_robustness_score()
+        rob_2d = self.get_robustness_score(self.rob_frames_counter_2d)
         err_2d = np.mean(self.err_list_2d)
-        err_3d = np.mean(self.err_list_3d)
-        n_frames_acc = len(self.iou_list)
+        rob_3d = self.get_robustness_score(self.rob_frames_counter_3d)
+        err_list_3d_filtered = [value for value in self.err_list_3d if value != "failed_3d_threshold"]
+        err_3d = np.mean(err_list_3d_filtered)
+        n_frames_2d = len(self.iou_list)
         n_frames_rob = self.n_visible_and_not_diff + self.n_excessive_frames
-        return acc, rob, err_2d, err_3d, n_frames_acc, n_frames_rob
+        n_frames_3d = len(err_list_3d_filtered)
+        return acc, rob_2d, err_2d, rob_3d, err_3d, n_frames_2d, n_frames_rob, n_frames_3d
 
 
 def get_bbox_corners(bbox):
@@ -576,16 +601,20 @@ def assess_anchor(v, anch, ar, kss, is_visualization_off):
     t = None
     is_tracker_failed = False
     while v.cap.isOpened():
-        # Get data of new frame
-        frame, frame_counter = v.get_frame()
-        if frame_counter < anch:
+        v.frame_counter += 1 # Since it is initialized to -1, the first frame will be 0
+        if is_tracker_failed:
+            if v.frame_counter > kss.TERMINATOR_FRAME:
+                break
+        else:
+            # Get data of new frame
+            frame = v.get_frame()
+            if frame is None:
+                break # frame = None when video reached the last frame
+            im1, im2 = v.split_frame(frame)
+        if v.frame_counter < anch:
             continue # skip frames before anchor
-        if frame_counter > kss.TERMINATOR_FRAME and is_tracker_failed:
-            break
-        if frame is None:
-            break
-        im1, im2 = v.split_frame(frame)
-        bbox1_gt, bbox2_gt, is_difficult, is_visible_in_both_stereo = v.get_bbox_gt(frame_counter)
+
+        bbox1_gt, bbox2_gt, is_difficult, is_visible_in_both_stereo = v.get_bbox_gt(v.frame_counter)
 
         if t is None:
             # Initialise the tracker
@@ -598,11 +627,11 @@ def assess_anchor(v, anch, ar, kss, is_visualization_off):
 
         if is_difficult or not is_visible_in_both_stereo:
             # add `ignore` to sub-sequence
-            kss.add_iou_score("ignore", frame_counter)
+            kss.add_iou_score("ignore", v.frame_counter)
         else:
             ar.n_visible_and_not_diff += 1
             if is_tracker_failed:
-                kss.add_iou_score(0, frame_counter)
+                kss.add_iou_score(0, v.frame_counter)
 
         if not is_tracker_failed:
             # Update the tracker
@@ -618,16 +647,16 @@ def assess_anchor(v, anch, ar, kss, is_visualization_off):
                     ar.n_excessive_frames += 1
             else:
                 tracking_failure_flag, iou = ar.calculate_bbox_metrics(bbox1_gt, bbox1_p, bbox2_gt, bbox2_p)
-                kss.add_iou_score(iou, frame_counter)
+                kss.add_iou_score(iou, v.frame_counter)
                 if tracking_failure_flag:
-                    ar.use_only_accuracy_before_failure()
+                    ar.use_scores_before_failure()
                     is_tracker_failed = True
                     if not is_visualization_off:
                         bbox1_p, bbox2_p = None, None
 
 
         # Show animation of the tracker
-        if not is_visualization_off:
+        if not is_visualization_off and not is_tracker_failed:
             frame_aug = draw_bb_in_frame(im1, im2,
                                          bbox1_gt, bbox1_p,
                                          bbox2_gt, bbox2_p,
@@ -646,11 +675,12 @@ def assess_keypoint(v, kpt_anchors, kss, config_results, is_visualization_off):
     for anch_id, anch in enumerate(kpt_anchors):
         ar = AnchorResults(config_results["n_misses_allowed"],
                            config_results["iou_threshold"],
+                           config_results["err_3d_threshold"],
                            v.Q)
         assess_anchor(v, anch, ar, kss, is_visualization_off)
-        acc, rob, err_2d, err_3d, n_frames, n_frames_rob = ar.get_full_metric()
-        print_results("\t\t\tAnchor {}, ".format(anch_id), acc, rob, err_2d, err_3d)
-        stats.append_stats(acc, rob, err_2d, err_3d, n_frames, n_frames_rob)
+        acc, rob_2d, err_2d, rob_3d, err_3d, n_f_2d, n_f_rob, n_f_3d = ar.get_full_metric()
+        print_results("\t\t\tAnchor {}, ".format(anch_id), acc, rob_2d, err_2d, rob_3d, err_3d)
+        stats.append_stats(acc, rob_2d, err_2d, rob_3d, err_3d, n_f_2d, n_f_rob, n_f_3d)
         # Re-start video for next anchor, or for next keypoint
         v.video_restart()
     assert(len(stats.acc_list) == len(kpt_anchors)) # Check that we have a acc_list for each anchor
@@ -672,12 +702,12 @@ def calculate_results_for_video(rank, anchors, case_sample_path, is_to_rectify, 
         # After loading gt, get termination frame for that specific keypoint and video
         terminator_frame = v.get_terminator_frame()
         kss = KptSubSequences(terminator_frame, case_sample_path, kpt_id)
-        acc, rob, err_2d, err_3d, n_frms, n_frms_rob = assess_keypoint(v,
-                                                                       kpt_anchors,
-                                                                       kss,
-                                                                       config_results,
-                                                                       is_visualization_off)
-        stats_video.append_stats(acc, rob, err_2d, err_3d, n_frms, n_frms_rob)
+        acc, rob_2d, err_2d, rob_3d, err_3d, n_f_2d, n_f_rob, n_f_3d = assess_keypoint(v,
+                                                                                       kpt_anchors,
+                                                                                       kss,
+                                                                                       config_results,
+                                                                                       is_visualization_off)
+        stats_video.append_stats(acc, rob_2d, err_2d, rob_3d, err_3d, n_f_2d, n_f_rob, n_f_3d)
         rank.add_kpt_ss(kss)
     # Check that we have statistics for each of the keypoints
     assert(len(stats_video.acc_list) == v.n_keypoints)
@@ -688,12 +718,13 @@ def calculate_results_for_video(rank, anchors, case_sample_path, is_to_rectify, 
     return stats_video.get_stats_weighted_average()
 
 
-def print_results(str_start, acc, rob, err_2d, err_3d):
-    print("{} Acc:{:.3f} Rob:{:.3f} Err_2D: {:.1f} [pixels] Err_3D: {:.2f} [mm]".format(str_start,
-                                                                                        acc,
-                                                                                        rob,
-                                                                                        err_2d,
-                                                                                        err_3d))
+def print_results(str_start, acc, rob_2d, err_2d, rob_3d, err_3d):
+    print("{} Acc:{:.3f} Rob_2D:{:.3f} Err_2D:{:.1f} [pixels] | Rob_3D:{:.3f} Err_3D:{:.2f} [mm]".format(str_start,
+                                                                                                         acc,
+                                                                                                         rob_2d,
+                                                                                                         err_2d,
+                                                                                                         rob_3d,
+                                                                                                         err_3d))
 
 
 def calculate_results(config, valid_or_test, is_visualization_off):
@@ -713,24 +744,24 @@ def calculate_results(config, valid_or_test, is_visualization_off):
             print("\n\t{}".format(case.case_id))
             # Go through case sample (in other words, each video)
             for cs in case.case_samples:
-                acc, rob, err_2d, err_3d, n_frms, n_frms_rob = calculate_results_for_video(rank,
-                                                                                           cs.anchors,
-                                                                                           cs.case_sample_path,
-                                                                                           is_to_rectify,
-                                                                                           config_results,
-                                                                                           is_visualization_off)
-                print_results("\t\t{}".format(cs.case_sample_path), acc, rob, err_2d, err_3d)
-                stats_case.append_stats(acc, rob, err_2d, err_3d, n_frms, n_frms_rob)
+                acc, rob_2d, err_2d, rob_3d, err_3d, n_f_2d, n_f_rob, n_f_3d = calculate_results_for_video(rank,
+                                                                                                           cs.anchors,
+                                                                                                           cs.case_sample_path,
+                                                                                                           is_to_rectify,
+                                                                                                           config_results,
+                                                                                                           is_visualization_off)
+                print_results("\t\t{}".format(cs.case_sample_path), acc, rob_2d, err_2d, rob_3d, err_3d)
+                stats_case.append_stats(acc, rob_2d, err_2d, rob_3d, err_3d, n_f_2d, n_f_rob, n_f_3d)
             # Get results for all the videos in the case
-            case_acc, case_rob, case_err_2d, case_err_3d, case_n_frms, case_n_frms_rob = stats_case.get_stats_weighted_average()
-            print_results("\t\tWeighted average, ", case_acc, case_rob, case_err_2d, case_err_3d)
-            stats_case_all.append_stats(case_acc, case_rob, case_err_2d, case_err_3d, case_n_frms, case_n_frms_rob)
+            case_acc, case_rob_2d, case_err_2d, case_rob_3d, case_err_3d, case_n_f_2d, case_n_f_rob, case_n_f_3d = stats_case.get_stats_weighted_average()
+            print_results("\t\tWeighted average, ", case_acc, case_rob_2d, case_err_2d, case_rob_3d, case_err_3d)
+            stats_case_all.append_stats(case_acc, case_rob_2d, case_err_2d, case_rob_3d, case_err_3d, case_n_f_2d, case_n_f_rob, case_n_f_3d)
         # Calculate the statistics for all cases together
-        final_acc, final_rob, final_err_2d, final_err_3d, _, _ = stats_case_all.get_stats_weighted_average()
+        final_acc, final_rob_2d, final_err_2d, final_rob_3d, final_err_3d, _, _, _ = stats_case_all.get_stats_weighted_average()
         print('{} final score:'.format(valid_or_test).upper())
         #rank.calculate_N_min_and_N_max() # Used by callenge organizers to get N_min and N_max for each dataset
         eao = rank.calculate_eao_score()
-        print_results("\tEAO:{:.3f}".format(eao), final_acc, final_rob, final_err_2d, final_err_3d)
+        print_results("\tEAO:{:.3f}".format(eao), final_acc, final_rob_2d, final_err_2d, final_rob_3d, final_err_3d)
 
 
 # function called from `main.py`!

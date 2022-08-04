@@ -5,7 +5,8 @@ from src.evaluate import AnchorResults, EAO_Rank
 def test_iou():
     n_misses_allowed = 10
     iou_threshold = 0.1
-    ar = AnchorResults(n_misses_allowed, iou_threshold)
+    err_3d_threshold = 1000
+    ar = AnchorResults(n_misses_allowed, iou_threshold, err_3d_threshold)
     # Empty intersection
     bbox_gt = (0, 0, 2, 2)
     bbox_p = (5, 5, 2, 2)
@@ -32,18 +33,20 @@ def test_iou():
 def test_robustness():
     n_misses_allowed = 10
     iou_threshold = 0.1
-    ar = AnchorResults(n_misses_allowed, iou_threshold)
+    err_3d_threshold = 1000
+    ar = AnchorResults(n_misses_allowed, iou_threshold, err_3d_threshold)
     ar.robustness_frames_counter = 25
     ar.n_visible_and_not_diff = 40
     ar.n_excessive_frames = 10
-    rob = ar.get_robustness_score()
+    rob = ar.get_robustness_score(25)
     assert(rob == 0.5) # 25 / (40 + 10)
 
 
 def test_accuracy():
     n_misses_allowed = 10
     iou_threshold = 0.1
-    ar = AnchorResults(n_misses_allowed, iou_threshold)
+    err_3d_threshold = 1000
+    ar = AnchorResults(n_misses_allowed, iou_threshold, err_3d_threshold)
     ar.iou_list = [1.0, 1.0, 0.5, 0.5]
     ar.n_visible_and_not_diff = 4
     acc = ar.get_accuracy_score()

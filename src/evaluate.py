@@ -403,11 +403,13 @@ class AnchorResults:
         """
         Check if stereo tracking is a success or not
         """
+        iou = 0
         if bbox1_p is not None and bbox2_p is not None:
             # Tracker predicted the position of the bounding boxes
             iou1 = self.get_iou(bbox1_gt, bbox1_p)
             iou2 = self.get_iou(bbox2_gt, bbox2_p)
             iou = np.mean([iou1, iou2])
+            self.iou_list.append(iou)
             if iou1 > self.iou_threshold and iou2 > self.iou_threshold:
                 # Enough overlap
                 self.robustness_frames_counter += 1
@@ -418,9 +420,7 @@ class AnchorResults:
                 self.n_misses_successive += 1
         else:
             # Tracker failed to predict the bounding boxes
-            iou = 0
             self.n_misses_successive += 1
-        self.iou_list.append(iou)
         if self.n_misses_successive > self.n_misses_allowed:
             self.n_misses_successive = 0
             return True, iou

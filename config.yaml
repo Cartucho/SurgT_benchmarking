@@ -2,7 +2,7 @@ is_to_rectify: True # Set to `False` if the videos are already rectified.
 results:
     n_misses_allowed: 10
     iou_threshold: 0.1
-    err_3d_threshold: 250 # [mm]
+    err_3d_threshold: 100 # [mm]
 validation:
     is_to_download: True # Set to True to download the `validation` data!
     is_to_evaluate: True # Set to True to calculate the `validation` results!

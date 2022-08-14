@@ -408,37 +408,44 @@ class AnchorResults:
         self.n_misses_successive_3d = 0
 
 
-    def calculate_bbox_metrics(self, bbox1_gt, bbox1_p, bbox2_gt, bbox2_p):
+    def calculate_bbox_metrics(self, bbox1_gt, bbox1_p, bbox2_gt, bbox2_p, is_track_fail_2d, is_track_fail_3d):
         """
-        Check if stereo tracking is a success or not
+            Compute scores for a specific image frame of a video, given the ground truth and predictions.
         """
         iou = 0
         if bbox1_p is not None and bbox2_p is not None:
             # Tracker predicted the position of the bounding boxes
-            iou1 = self.get_iou(bbox1_gt, bbox1_p)
-            iou2 = self.get_iou(bbox2_gt, bbox2_p)
-            iou = np.mean([iou1, iou2])
-            self.iou_list.append(iou)
-            self.calculate_l2_norm_errors(bbox1_gt, bbox1_p, bbox2_gt, bbox2_p)
-            if iou1 > self.iou_threshold and iou2 > self.iou_threshold:
-                # Enough overlap
-                self.rob_frames_counter_2d += 1
-                self.n_misses_successive_2d = 0
-            else:
-                # Not enough overlap
-                self.n_misses_successive_2d += 1
+            self.calculate_l2_norm_errors(bbox1_gt, bbox1_p, bbox2_gt, bbox2_p, is_track_fail_2d, is_track_fail_3d)
+            if not is_track_fail_2d:
+                iou1 = self.get_iou(bbox1_gt, bbox1_p)
+                iou2 = self.get_iou(bbox2_gt, bbox2_p)
+                iou = np.mean([iou1, iou2])
+                self.iou_list.append(iou)
+                if iou1 > self.iou_threshold and iou2 > self.iou_threshold:
+                    # Enough overlap
+                    self.rob_frames_counter_2d += 1
+                    self.n_misses_successive_2d = 0
+                else:
+                    # Not enough overlap
+                    self.n_misses_successive_2d += 1
         else:
+            self.iou_list.append("error_no_prediction")
+            self.err_2d.append("error_no_prediction")
+            self.err_3d.append("error_no_prediction")
             # Tracker failed to predict the bounding boxes
             self.n_misses_successive_2d += 1
-        n_misses_successive = max(self.n_misses_successive_2d, self.n_misses_successive_3d)
-        if n_misses_successive > self.n_misses_allowed:
-            self.n_misses_successive_2d = 0
-            self.n_misses_successive_3d = 0
-            return True, iou
-        return False, iou
+            self.n_misses_successive_3d += 1
+        # If track didn't fail yet, check if it did in this current image frame
+        flag_track_fail_2d = False
+        if not is_track_fail_2d:
+            flag_track_fail_2d = (self.n_misses_successive_2d > self.n_misses_allowed)
+        flag_track_fail_3d = False
+        if not is_track_fail_3d:
+            flag_track_fail_3d = (self.n_misses_successive_3d > self.n_misses_allowed)
+        return flag_track_fail_2d, flag_track_fail_3d, iou
 
 
-    def use_scores_before_failure(self):
+    def use_scores_before_failure_2d(self):
         """
             Delete the last `n_misses_allowed + 1` scores, since tracker failed,
               so that the tracking failure does not affect the scores.
@@ -446,6 +453,10 @@ class AnchorResults:
         n_scores_to_delete = self.n_misses_allowed + 1
         self.iou_list = self.iou_list[:-n_scores_to_delete]
         self.err_2d = self.err_2d[:-n_scores_to_delete]
+
+
+    def use_scores_before_failure_3d(self):
+        n_scores_to_delete = self.n_misses_allowed + 1
         self.err_3d = self.err_3d[:-n_scores_to_delete]
 
 
@@ -471,37 +482,38 @@ class AnchorResults:
         return pt_3d
 
 
-    def calculate_l2_norm_errors(self, bbox1_gt, bbox1_p, bbox2_gt, bbox2_p):
+    def calculate_l2_norm_errors(self, bbox1_gt, bbox1_p, bbox2_gt, bbox2_p, is_track_fail_2d, is_track_fail_3d):
         centr_2d_gt_1 = self.get_bbox_centr(bbox1_gt)
         centr_2d_p_1 = self.get_bbox_centr(bbox1_p)
         centr_2d_gt_2 = self.get_bbox_centr(bbox2_gt)
         centr_2d_p_2 = self.get_bbox_centr(bbox2_p)
         # Get 2D error [pixels]
-        err_2d_1 = self.get_l2_norm(centr_2d_gt_1, centr_2d_p_1)
-        err_2d_2 = self.get_l2_norm(centr_2d_gt_2, centr_2d_p_2)
-        err_2d = np.mean([err_2d_1, err_2d_2])
-        self.err_2d.append(err_2d)
+        if not is_track_fail_2d:
+            err_2d_1 = self.get_l2_norm(centr_2d_gt_1, centr_2d_p_1)
+            err_2d_2 = self.get_l2_norm(centr_2d_gt_2, centr_2d_p_2)
+            err_2d = np.mean([err_2d_1, err_2d_2])
+            self.err_2d.append(err_2d)
         # Get 3D error [mm]
-        disp_p = centr_2d_p_1[0] - centr_2d_p_2[0]
-        disp_gt = centr_2d_gt_1[0] - centr_2d_gt_2[0]
-        if disp_p > 0 and disp_gt > 0:
-            """
-             I am assuming that `centr_bbox1_p` and `centr_bbox2_p` have the same `v`,
-             which should be the case for a stereo Tracker that works with rectified images as input.
-            """
-            centr_3d_p = self.get_3d_pt(disp_p, centr_2d_p_1[0], centr_2d_p_1[1])
-            centr_3d_gt = self.get_3d_pt(disp_gt, centr_2d_gt_1[0], centr_2d_gt_1[1])
-            err_3d = self.get_l2_norm(centr_3d_p, centr_3d_gt)
-            if err_3d <= self.err_3d_threshold:
-                """ Small disparities could lead to very large 3D errors,
-                    therefore we use a threshold to filter high errors + a robustness_3d score.
+        if not is_track_fail_3d:
+            disp_p = centr_2d_p_1[0] - centr_2d_p_2[0]
+            disp_gt = centr_2d_gt_1[0] - centr_2d_gt_2[0]
+            if disp_p > 0 and disp_gt > 0:
                 """
-                self.rob_frames_counter_3d += 1
-                self.n_misses_successive_3d = 0
+                 I am assuming that `centr_bbox1_p` and `centr_bbox2_p` have the same `v`,
+                 which should be the case for a stereo Tracker that works with rectified images as input.
+                """
+                centr_3d_p = self.get_3d_pt(disp_p, centr_2d_p_1[0], centr_2d_p_1[1])
+                centr_3d_gt = self.get_3d_pt(disp_gt, centr_2d_gt_1[0], centr_2d_gt_1[1])
+                err_3d = self.get_l2_norm(centr_3d_p, centr_3d_gt)
                 self.err_3d.append(err_3d)
-                return
-        self.n_misses_successive_3d += 1
-        self.err_3d.append("failed_3d_threshold")
+                if err_3d <= self.err_3d_threshold:
+                    self.rob_frames_counter_3d += 1
+                    self.n_misses_successive_3d = 0
+                else:
+                    self.n_misses_successive_3d += 1
+            else:
+                self.err_3d.append("error_negative_disparity")
+                self.n_misses_successive_3d += 1
 
 
     def get_iou(self, bbox_gt, bbox_p):
@@ -528,8 +540,9 @@ class AnchorResults:
 
     def get_accuracy_score(self):
         acc = 1.0
+        iou_list_filtered = [value for value in self.iou_list if value != "error_no_prediction"]
         if self.n_visible_and_not_diff > 0:
-            acc = np.mean(self.iou_list)
+            acc = np.mean(iou_list_filtered)
         assert(acc >= 0.0 and acc <= 1.0)
         return acc
 
@@ -550,13 +563,14 @@ class AnchorResults:
         assert(len(self.iou_list) == len(self.err_2d))
         acc = self.get_accuracy_score()
         rob_2d = self.get_robustness_score(self.rob_frames_counter_2d)
-        err_2d = np.mean(self.err_2d)
+        err_filtered_2d = [value for value in self.err_2d if value != "error_no_prediction"]
+        err_2d = np.mean(err_filtered_2d)
         rob_3d = self.get_robustness_score(self.rob_frames_counter_3d)
-        err_3d_filtered = [value for value in self.err_3d if value != "failed_3d_threshold"]
-        err_3d = np.mean(err_3d_filtered)
+        err_filtered_3d = [value for value in self.err_3d if value != "error_negative_disparity" and value != "error_no_prediction"]
+        err_3d = np.mean(err_filtered_3d)
         n_f_2d = len(self.iou_list)
         n_f_rob = self.n_visible_and_not_diff + self.n_excessive_frames
-        n_f_3d = len(err_3d_filtered)
+        n_f_3d = len(err_filtered_3d)
         stats_anchor.acc = acc
         stats_anchor.rob_2d = rob_2d
         stats_anchor.err_2d = err_2d
@@ -607,10 +621,11 @@ def assess_anchor(v, anch, ar, kss, is_visualization_off):
 
     # Use video and load a specific key point
     t = None
-    is_tracker_failed = False
+    is_track_fail_2d = False
+    is_track_fail_3d = False
     while v.cap.isOpened():
         v.frame_counter += 1 # Since it is initialized to -1, the first frame will be 0
-        if is_tracker_failed:
+        if is_track_fail_2d and is_track_fail_3d:
             if v.frame_counter > kss.TERMINATOR_FRAME:
                 break
         else:
@@ -638,10 +653,10 @@ def assess_anchor(v, anch, ar, kss, is_visualization_off):
             kss.add_iou_score("ignore", v.frame_counter)
         else:
             ar.n_visible_and_not_diff += 1
-            if is_tracker_failed:
+            if is_track_fail_2d:
                 kss.add_iou_score(0, v.frame_counter)
 
-        if not is_tracker_failed:
+        if not is_track_fail_2d or not is_track_fail_3d:
             # Update the tracker
             bbox1_p, bbox2_p = t.tracker_update(im1, im2)
             if is_difficult:
@@ -654,17 +669,19 @@ def assess_anchor(v, anch, ar, kss, is_visualization_off):
                     # If the tracker made a prediction when the target is not visible
                     ar.n_excessive_frames += 1
             else:
-                tracking_failure_flag, iou = ar.calculate_bbox_metrics(bbox1_gt, bbox1_p, bbox2_gt, bbox2_p)
+                flag_track_fail_2d, flag_track_fail_3d, iou = ar.calculate_bbox_metrics(bbox1_gt, bbox1_p, bbox2_gt, bbox2_p, is_track_fail_2d, is_track_fail_3d)
                 kss.add_iou_score(iou, v.frame_counter)
-                if tracking_failure_flag:
-                    ar.use_scores_before_failure()
-                    is_tracker_failed = True
-                    if not is_visualization_off:
-                        bbox1_p, bbox2_p = None, None
+                if flag_track_fail_2d:
+                    ar.use_scores_before_failure_2d()
+                    is_track_fail_2d = True
+                if flag_track_fail_3d:
+                    ar.use_scores_before_failure_3d()
+                    is_track_fail_3d = True
 
 
         # Show animation of the tracker
-        if not is_visualization_off and not is_tracker_failed:
+        is_track_fail_both = is_track_fail_2d or flag_track_fail_3d
+        if not is_visualization_off and not is_track_fail_both:
             frame_aug = draw_bb_in_frame(im1, im2,
                                          bbox1_gt, bbox1_p,
                                          bbox2_gt, bbox2_p,

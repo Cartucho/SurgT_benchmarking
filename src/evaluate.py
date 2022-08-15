@@ -174,8 +174,10 @@ class Statistics:
         self.acc = []
         self.rob_2d = []
         self.err_2d = []
+        self.err_2d_std = []
         self.rob_3d = []
         self.err_3d = []
+        self.err_3d_std = []
         self.n_f_2d = [] # n_f -> number of frames
         self.n_f_rob = []
         self.n_f_3d = []
@@ -185,8 +187,10 @@ class Statistics:
         self.acc.append(stats.acc)
         self.rob_2d.append(stats.rob_2d)
         self.err_2d.append(stats.err_2d)
+        self.err_2d_std.append(stats.err_2d_std)
         self.rob_3d.append(stats.rob_3d)
         self.err_3d.append(stats.err_3d)
+        self.err_3d_std.append(np.std(stats.err_3d_std))
         self.n_f_2d.append(stats.n_f_2d)
         self.n_f_rob.append(stats.n_f_rob)
         self.n_f_3d.append(stats.n_f_3d)
@@ -197,8 +201,10 @@ class Statistics:
         self.acc = np.ma.average(self.acc, weights=self.n_f_2d)
         self.rob_2d = np.ma.average(self.rob_2d, weights=self.n_f_rob)
         self.err_2d = np.ma.average(self.err_2d, weights=self.n_f_2d)
+        self.err_2d_std = np.ma.average(self.err_2d_std, weights=self.n_f_2d)
         self.rob_3d = np.ma.average(self.rob_3d, weights=self.n_f_rob)
         self.err_3d = np.ma.average(self.err_3d, weights=self.n_f_3d)
+        self.err_3d_std = np.ma.average(self.err_3d_std, weights=self.n_f_3d)
         """ Merge scores by summing all the frames """
         self.n_f_2d = sum(self.n_f_2d)
         self.n_f_rob = sum(self.n_f_rob)
@@ -564,9 +570,11 @@ class AnchorResults:
         acc = self.get_accuracy_score()
         rob_2d = self.get_robustness_score(self.rob_frames_counter_2d)
         err_filtered_2d = [value for value in self.err_2d if value != "error_no_prediction"]
+        err_2d_std = np.std(err_filtered_2d)
         err_2d = np.mean(err_filtered_2d)
         rob_3d = self.get_robustness_score(self.rob_frames_counter_3d)
         err_filtered_3d = [value for value in self.err_3d if value != "error_negative_disparity" and value != "error_no_prediction"]
+        err_3d_std = np.std(err_filtered_3d)
         err_3d = np.mean(err_filtered_3d)
         n_f_2d = len(self.iou_list)
         n_f_rob = self.n_visible_and_not_diff + self.n_excessive_frames
@@ -574,8 +582,10 @@ class AnchorResults:
         stats_anchor.acc = acc
         stats_anchor.rob_2d = rob_2d
         stats_anchor.err_2d = err_2d
+        stats_anchor.err_2d_std = err_2d_std
         stats_anchor.rob_3d = rob_3d
         stats_anchor.err_3d = err_3d
+        stats_anchor.err_3d_std = err_3d_std
         stats_anchor.n_f_2d = n_f_2d
         stats_anchor.n_f_rob = n_f_rob
         stats_anchor.n_f_3d = n_f_3d
@@ -692,12 +702,14 @@ def assess_anchor(v, anch, ar, kss, is_visualization_off):
 
 
 def print_results(str_start, stats):
-    print("{} Acc:{:.3f} Rob_2D:{:.3f} Err_2D:{:.1f} [pixels] | Rob_3D:{:.3f} Err_3D:{:.2f} [mm]".format(str_start,
-                                                                                                         stats.acc,
-                                                                                                         stats.rob_2d,
-                                                                                                         stats.err_2d,
-                                                                                                         stats.rob_3d,
-                                                                                                         stats.err_3d))
+    print("{} Acc:{:.3f} Rob_2D:{:.3f} Err_2D:{:.1f} +/- {:.1f} [pixels] | Rob_3D:{:.3f} Err_3D:{:.2f} +/- {:.1f} [mm]".format(str_start,
+                                                                                                                               stats.acc,
+                                                                                                                               stats.rob_2d,
+                                                                                                                               stats.err_2d,
+                                                                                                                               stats.err_2d_std,
+                                                                                                                               stats.rob_3d,
+                                                                                                                               stats.err_3d,
+                                                                                                                               stats.err_3d_std))
 
 
 def assess_keypoint(v, kpt_anchors, kss, stats_kpt, config_results, is_visualization_off):

@@ -190,7 +190,7 @@ class Statistics:
         self.err_2d_std.append(stats.err_2d_std)
         self.rob_3d.append(stats.rob_3d)
         self.err_3d.append(stats.err_3d)
-        self.err_3d_std.append(np.std(stats.err_3d_std))
+        self.err_3d_std.append(stats.err_3d_std)
         self.n_f_2d.append(stats.n_f_2d)
         self.n_f_rob.append(stats.n_f_rob)
         self.n_f_3d.append(stats.n_f_3d)

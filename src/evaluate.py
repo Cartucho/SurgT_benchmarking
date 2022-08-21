@@ -70,11 +70,11 @@ class Video:
 
 
     def is_bbox_inside_image(self, bbox_1, bbox_2):
-        u, u_max, v, v_max = bbox_1[:]
-        if u < 0 or v < 0 or u >= self.im_width or v >= self.im_height:
+        u, v, u_max, v_max = bbox_1[:]
+        if u < 0 or v < 0 or u_max >= self.im_width or v_max >= self.im_height:
             return False
-        u, u_max, v, v_max = bbox_2[:]
-        if u < 0 or v < 0 or u >= self.im_width or v >= self.im_height:
+        u, v, u_max, v_max = bbox_2[:]
+        if u < 0 or v < 0 or u_max >= self.im_width or v_max >= self.im_height:
             return False
         return True
 

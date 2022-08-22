@@ -562,6 +562,16 @@ class AnchorResults:
         return rob
 
 
+    def get_error_2D_score(self):
+        err_filtered_2d = [value for value in self.err_2d if value != "error_no_prediction"]
+        return np.std(err_filtered_2d), np.mean(err_filtered_2d)
+
+
+    def get_error_3D_score(self):
+        err_filtered_3d = [value for value in self.err_3d if value != "error_negative_disparity" and value != "error_no_prediction"]
+        return np.std(err_filtered_3d), np.mean(err_filtered_3d)
+
+
     def get_full_metric(self, stats_anchor):
         """
         Only happens after all frames are processed, end of video for-loop!
@@ -569,13 +579,9 @@ class AnchorResults:
         assert(len(self.iou_list) == len(self.err_2d))
         acc = self.get_accuracy_score()
         rob_2d = self.get_robustness_score(self.rob_frames_counter_2d)
-        err_filtered_2d = [value for value in self.err_2d if value != "error_no_prediction"]
-        err_2d_std = np.std(err_filtered_2d)
-        err_2d = np.mean(err_filtered_2d)
+        err_2d_std, err_2d = self.get_error_2D_score()
         rob_3d = self.get_robustness_score(self.rob_frames_counter_3d)
-        err_filtered_3d = [value for value in self.err_3d if value != "error_negative_disparity" and value != "error_no_prediction"]
-        err_3d_std = np.std(err_filtered_3d)
-        err_3d = np.mean(err_filtered_3d)
+        err_3d_std, err_3d = self.get_error_3D_score()
         n_f_2d = len(self.iou_list)
         n_f_rob = self.n_visible_and_not_diff + self.n_excessive_frames
         n_f_3d = len(err_filtered_3d)

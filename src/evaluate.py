@@ -1,4 +1,5 @@
 import os
+import sys
 from src import utils
 from src.sample_tracker import Tracker
 
@@ -547,6 +548,8 @@ class AnchorResults:
     def get_accuracy_score(self):
         acc = 1.0
         iou_list_filtered = [value for value in self.iou_list if value != "error_no_prediction"]
+        if not iou_list_filtered:
+            return 0.0
         if self.n_visible_and_not_diff > 0:
             acc = np.mean(iou_list_filtered)
         assert(acc >= 0.0 and acc <= 1.0)
@@ -564,12 +567,16 @@ class AnchorResults:
 
     def get_error_2D_score(self):
         err_filtered_2d = [value for value in self.err_2d if value != "error_no_prediction"]
-        return np.std(err_filtered_2d), np.mean(err_filtered_2d)
+        if not err_filtered_2d:
+            return sys.maxint, sys.maxint, 0 # It won't affect the results, since the weight will be zero (`n_f_2d` = 0)
+        return np.std(err_filtered_2d), np.mean(err_filtered_2d), len(err_filtered_2d)
 
 
     def get_error_3D_score(self):
         err_filtered_3d = [value for value in self.err_3d if value != "error_negative_disparity" and value != "error_no_prediction"]
-        return np.std(err_filtered_3d), np.mean(err_filtered_3d)
+        if not err_filtered_3d:
+            return sys.maxint, sys.maxint, 0 # It won't affect the results, since the weight will be zero (`n_f_3d` = 0)
+        return np.std(err_filtered_3d), np.mean(err_filtered_3d), len(err_filtered_3d)
 
 
     def get_full_metric(self, stats_anchor):
@@ -579,12 +586,10 @@ class AnchorResults:
         assert(len(self.iou_list) == len(self.err_2d))
         acc = self.get_accuracy_score()
         rob_2d = self.get_robustness_score(self.rob_frames_counter_2d)
-        err_2d_std, err_2d = self.get_error_2D_score()
+        err_2d_std, err_2d, n_f_2d = self.get_error_2D_score()
         rob_3d = self.get_robustness_score(self.rob_frames_counter_3d)
-        err_3d_std, err_3d = self.get_error_3D_score()
-        n_f_2d = len(self.iou_list)
-        n_f_rob = self.n_visible_and_not_diff + self.n_excessive_frames
-        n_f_3d = len(err_filtered_3d)
+        err_3d_std, err_3d, n_f_3d = self.get_error_3D_score()
+        n_f_rob = self.n_visible_and_not_diff + self.n_excessive_frames # Same for both 2D and 3D
         stats_anchor.acc = acc
         stats_anchor.rob_2d = rob_2d
         stats_anchor.err_2d = err_2d
@@ -708,14 +713,13 @@ def assess_anchor(v, anch, ar, kss, is_visualization_off):
 
 
 def print_results(str_start, stats):
-    print("{} Acc:{:.3f} Rob_2D:{:.3f} Err_2D:{:.1f} +/- {:.1f} [pixels] | Rob_3D:{:.3f} Err_3D:{:.2f} +/- {:.1f} [mm]".format(str_start,
-                                                                                                                               stats.acc,
-                                                                                                                               stats.rob_2d,
-                                                                                                                               stats.err_2d,
-                                                                                                                               stats.err_2d_std,
-                                                                                                                               stats.rob_3d,
-                                                                                                                               stats.err_3d,
-                                                                                                                               stats.err_3d_std))
+    message = "{} Rob_2D:{:.3f}".format(str_start, stats.rob_2d)
+    if stats.n_f_2d != 0:
+        message += " Acc:{:.3f} Err_2D:{:.1f} +/- {:.1f} [pixels]".format(stats.acc, stats.err_2d, stats.err_2d_std)
+    message += " | Rob_3D:{:.3f}".format(stats.rob_3d)
+    if stats.n_f_3d != 0:
+        message += " Err_3D:{:.2f} +/- {:.1f} [mm]".format(stats.err_3d, stats.err_3d_std)
+    print(message)
 
 
 def assess_keypoint(v, kpt_anchors, kss, stats_kpt, config_results, is_visualization_off):

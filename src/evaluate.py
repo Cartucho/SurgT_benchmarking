@@ -520,7 +520,7 @@ class AnchorResults:
                 else:
                     self.n_misses_successive_3d += 1
             else:
-                self.err_3d.append("error_negative_disparity")
+                self.err_3d.append("error_non_positive_disp")
                 self.n_misses_successive_3d += 1
 
 
@@ -571,7 +571,7 @@ class AnchorResults:
 
 
     def get_error_3D_score(self):
-        err_filtered_3d = [value for value in self.err_3d if value != "error_negative_disparity" and value != "error_no_prediction"]
+        err_filtered_3d = [value for value in self.err_3d if value != "error_non_positive_disp" and value != "error_no_prediction"]
         if not err_filtered_3d:
             return sys.maxsize, sys.maxsize, 0 # It won't affect the results, since the weight will be zero (`n_f_3d` = 0)
         return np.std(err_filtered_3d), np.mean(err_filtered_3d), len(err_filtered_3d)

@@ -72,6 +72,8 @@ def test_EAO_Rank():
 # TODO
 
 """ Test AnchorResults class """
+def test_calculate_bbox_metrics():
+    pass
 
 def test_use_scores_before_failure_2d():
     ar = AnchorResults(10, 0, 0) # setting 10 to n_misses_allowed
@@ -123,6 +125,23 @@ def test_get_3d_pt():
     assert(pt_3d[1] == pytest.approx(-61.2, 0.01))
     z = (ar.Q[2, 3] * (1./ar.Q[3, 2])) / 40. # f*b/disp
     assert(pt_3d[2] == pytest.approx(z, 0.01))
+
+
+def test_l2_norm_errors():
+    ar = AnchorResults(10, 0.1, 100)
+    bbox1_gt = (50, 50, 50, 50)
+    bbox1_p = (50, 50, 50, 50)
+    bbox2_gt = (50, 50, 50, 50)
+    bbox2_p = (50, 50, 50, 50)
+    ar.calculate_l2_norm_errors(bbox1_gt, bbox1_p, bbox2_gt, bbox2_p, True, True)
+    assert(not ar.err_2d)
+    assert(not ar.err_3d)
+    ar.calculate_l2_norm_errors(bbox1_gt, bbox1_p, bbox2_gt, bbox2_p, False, False)
+    assert(ar.err_2d[0] == 0)
+    assert(ar.n_misses_successive_2d == 0)
+    assert(ar.err_3d[0] == "error_non_positive_disp")
+    assert(ar.n_misses_successive_3d == 1)
+
 
 
 def test_get_iou():
@@ -203,7 +222,7 @@ def test_get_error_3D_score():
     assert(err_3d_std == 2.5)
     assert(err_3d == 7.5)
     assert(n_f_3d == 4)
-    ar.err_3d = [5.0, 5.0, "error_no_prediction", 10.0, 10.0, "error_negative_disparity"]
+    ar.err_3d = [5.0, 5.0, "error_no_prediction", 10.0, 10.0, "error_non_positive_disp"]
     err_3d_std, err_3d, n_f_3d = ar.get_error_3D_score()
     assert(err_3d_std == 2.5)
     assert(err_3d == 7.5)
@@ -213,7 +232,7 @@ def test_get_error_3D_score():
     assert(err_3d_std == pytest.approx(9.25, 0.01))
     assert(err_3d == pytest.approx(10.33, 0.01))
     assert(n_f_3d == 6)
-    ar.err_3d = ["error_no_prediction", "error_no_prediction", "error_negative_disparity"]
+    ar.err_3d = ["error_no_prediction", "error_no_prediction", "error_non_positive_disp"]
     err_3d_std, err_3d, n_f_3d = ar.get_error_3D_score()
     assert(n_f_3d == 0)
     ar.err_3d = ["error_no_prediction", "error_no_prediction", 50.]

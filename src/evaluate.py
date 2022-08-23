@@ -567,14 +567,14 @@ class AnchorResults:
     def get_error_2D_score(self):
         err_filtered_2d = [value for value in self.err_2d if value != "error_no_prediction"]
         if not err_filtered_2d:
-            return sys.maxint, sys.maxint, 0 # It won't affect the results, since the weight will be zero (`n_f_2d` = 0)
+            return sys.maxsize, sys.maxsize, 0 # It won't affect the results, since the weight will be zero (`n_f_2d` = 0)
         return np.std(err_filtered_2d), np.mean(err_filtered_2d), len(err_filtered_2d)
 
 
     def get_error_3D_score(self):
         err_filtered_3d = [value for value in self.err_3d if value != "error_negative_disparity" and value != "error_no_prediction"]
         if not err_filtered_3d:
-            return sys.maxint, sys.maxint, 0 # It won't affect the results, since the weight will be zero (`n_f_3d` = 0)
+            return sys.maxsize, sys.maxsize, 0 # It won't affect the results, since the weight will be zero (`n_f_3d` = 0)
         return np.std(err_filtered_3d), np.mean(err_filtered_3d), len(err_filtered_3d)
 
 

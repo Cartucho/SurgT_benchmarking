@@ -526,7 +526,9 @@ class AnchorResults:
 
     def get_iou(self, bbox_gt, bbox_p):
         gt_left, gt_top, gt_right, gt_bot = [bbox_gt[0], bbox_gt[1], bbox_gt[0]+bbox_gt[2], bbox_gt[1]+bbox_gt[3]]
+        gt_width, gt_height = bbox_gt[2], bbox_gt[3]
         p_left, p_top, p_right, p_bot = [bbox_p[0], bbox_p[1], bbox_p[0]+bbox_p[2], bbox_p[1]+bbox_p[3]]
+        p_width, p_height = bbox_p[2], bbox_p[3]
         inter_left = max(gt_left, p_left)
         inter_top = max(gt_top, p_top)
         inter_right = min(gt_right, p_right)
@@ -534,10 +536,6 @@ class AnchorResults:
         inter_width = np.maximum(0,inter_right - inter_left)
         inter_height = np.maximum(0,inter_bot - inter_top)
         inter_area = inter_width * inter_height
-        gt_width = bbox_gt[2]
-        gt_height = bbox_gt[3]
-        p_width = bbox_p[2]
-        p_height = bbox_p[3]
         gt_area = gt_width * gt_height
         p_area = p_width * p_height
         union_area = gt_area + p_area - inter_area

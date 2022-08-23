@@ -125,7 +125,7 @@ def test_get_accuracy_score():
     ar.iou_list = [1.0, 1.0, 0.5, 0.5]
     acc = ar.get_accuracy_score()
     assert(acc == 0.75)
-    ar.iou_list = [1.0, 1.0, "error_no_prediction", 0.5, 0.5, "error_no_prediction"]
+    ar.iou_list = [1.0, 1.0, "error_no_prediction", 0.5, 0.5]
     acc = ar.get_accuracy_score()
     assert(acc == 0.75)
 
@@ -137,10 +137,49 @@ def test_get_error_2D_score():
     ar = AnchorResults(n_misses_allowed, iou_threshold, err_3d_threshold)
     ar.err_2d = [25.0, 5.0, 20.0, 50.0]
     err_2d_std, err_2d, n_f_2d = ar.get_error_2D_score()
-    assert(pytest.approx(err_2d_std, 16.2))
+    assert(err_2d_std == pytest.approx(16.2, 0.01))
     assert(err_2d == 25.)
     assert(n_f_2d == 4)
+    ar.err_2d = [25.0, 5.0, "error_no_prediction", 20.0, 50.0]
+    err_2d_std, err_2d, n_f_2d = ar.get_error_2D_score()
+    assert(err_2d_std == pytest.approx(16.2, 0.01))
+    assert(err_2d == 25.)
+    assert(n_f_2d == 4)
+    ar.err_2d = [30.0, 30.0, 30.0, 30.0, 30.0]
+    err_2d_std, err_2d, n_f_2d = ar.get_error_2D_score()
+    assert(err_2d_std == pytest.approx(0.0, 0.01))
+    assert(err_2d == 30.)
+    assert(n_f_2d == 5)
 
+
+def test_get_error_3D_score():
+    n_misses_allowed = 10
+    iou_threshold = 0.1
+    err_3d_threshold = 1000
+    ar = AnchorResults(n_misses_allowed, iou_threshold, err_3d_threshold)
+    ar.err_3d = [5.0, 5.0, 10.0, 10.0]
+    err_3d_std, err_3d, n_f_3d = ar.get_error_3D_score()
+    assert(err_3d_std == 2.5)
+    assert(err_3d == 7.5)
+    assert(n_f_3d == 4)
+    ar.err_3d = [5.0, 5.0, "error_no_prediction", 10.0, 10.0, "error_negative_disparity"]
+    err_3d_std, err_3d, n_f_3d = ar.get_error_3D_score()
+    assert(err_3d_std == 2.5)
+    assert(err_3d == 7.5)
+    assert(n_f_3d == 4)
+    ar.err_3d = [2.0, 5.0, 5.0, 10.0, 10.0, 30.0]
+    err_3d_std, err_3d, n_f_3d = ar.get_error_3D_score()
+    assert(err_3d_std == pytest.approx(9.25, 0.01))
+    assert(err_3d == pytest.approx(10.33, 0.01))
+    assert(n_f_3d == 6)
+    ar.err_3d = ["error_no_prediction", "error_no_prediction", "error_negative_disparity"]
+    err_3d_std, err_3d, n_f_3d = ar.get_error_3D_score()
+    assert(n_f_3d == 0)
+    ar.err_3d = ["error_no_prediction", "error_no_prediction", 50.]
+    err_3d_std, err_3d, n_f_3d = ar.get_error_3D_score()
+    assert(err_3d_std == 0)
+    assert(err_3d == 50.)
+    assert(n_f_3d == 1)
 
 
 """ Test class-less functions """

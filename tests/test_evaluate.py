@@ -73,7 +73,26 @@ def test_EAO_Rank():
 
 """ Test AnchorResults class """
 def test_calculate_bbox_metrics():
-    pass
+    ar = AnchorResults(10, 0.1, 100)
+    bbox1_gt = (50, 50, 50, 50)
+    bbox1_p = None
+    bbox2_gt = (50, 50, 50, 50)
+    bbox2_p = (50, 50, 50, 50)
+    flag_track_fail_2d, flag_track_fail_3d, iou = ar.calculate_bbox_metrics(bbox1_gt, bbox1_p, bbox2_gt, bbox2_p, False, False)
+    assert(flag_track_fail_2d == False)
+    assert(flag_track_fail_3d == False)
+    assert(iou == 0)
+    assert(ar.n_misses_successive_2d == 1)
+    assert(ar.n_misses_successive_3d == 1)
+    assert(ar.iou_list[0] == "error_no_prediction")
+    assert(ar.err_2d[0] == "error_no_prediction")
+    assert(ar.err_3d[0] == "error_no_prediction")
+    bbox1_p = (50, 50, 50, 50) # Replace None, with the correct bbox
+    ar.calculate_bbox_metrics(bbox1_gt, bbox1_p, bbox2_gt, bbox2_p, False, False)
+    assert(ar.iou_list[1] == 1.)
+    assert(ar.n_misses_successive_2d == 0)
+    assert(ar.n_misses_successive_3d == 2) # Since disparity was still 0
+
 
 def test_use_scores_before_failure_2d():
     ar = AnchorResults(10, 0, 0) # setting 10 to n_misses_allowed
@@ -141,7 +160,6 @@ def test_l2_norm_errors():
     assert(ar.n_misses_successive_2d == 0)
     assert(ar.err_3d[0] == "error_non_positive_disp")
     assert(ar.n_misses_successive_3d == 1)
-
 
 
 def test_get_iou():

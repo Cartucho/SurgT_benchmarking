@@ -77,7 +77,13 @@ def test_get_bbox_centr():
     bbox = (0, 0, 100, 100)
     centre = ar.get_bbox_centr(bbox)
     assert(centre[0] == 50 and centre[1] == 50)
-    
+    bbox = (50, 10, 50, 100)
+    centre = ar.get_bbox_centr(bbox)
+    assert(centre[0] == 75. and centre[1] == 60.)
+    bbox = (50, 50, 1, 1)
+    centre = ar.get_bbox_centr(bbox)
+    assert(centre[0] == 50.5 and centre[1] == 50.5)
+
 
 def test_get_iou():
     ar = AnchorResults(0, 0, 0)

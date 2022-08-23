@@ -479,7 +479,7 @@ class AnchorResults:
 
 
     def get_3d_pt(self, disp, u, v):
-        assert(disp > 0)
+        assert(disp > 0) # This condition is tackled earlier in "calculate_l2_norm_errors()"
         pt_2d = np.array([[u],
                           [v],
                           [disp],

@@ -468,8 +468,8 @@ class AnchorResults:
 
 
     def get_bbox_centr(self, bbox):
-        centr_u = int(bbox[0] + (bbox[2] / 2))
-        centr_v = int(bbox[1] + (bbox[3] / 2))
+        centr_u = float(bbox[0] + (bbox[2] / 2.))
+        centr_v = float(bbox[1] + (bbox[3] / 2.))
         return np.array([centr_u, centr_v])
 
 

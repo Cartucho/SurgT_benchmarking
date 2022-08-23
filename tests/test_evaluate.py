@@ -72,11 +72,15 @@ def test_EAO_Rank():
 
 """ Test AnchorResults class """
 
+def test_get_bbox_centr():
+    ar = AnchorResults(0, 0, 0)
+    bbox = (0, 0, 100, 100)
+    centre = ar.get_bbox_centr(bbox)
+    assert(centre[0] == 50 and centre[1] == 50)
+    
+
 def test_get_iou():
-    n_misses_allowed = 10
-    iou_threshold = 0.1
-    err_3d_threshold = 100
-    ar = AnchorResults(n_misses_allowed, iou_threshold, err_3d_threshold)
+    ar = AnchorResults(0, 0, 0)
     # Empty intersection
     bbox_gt = (0, 0, 2, 2)
     bbox_p = (5, 5, 2, 2)
@@ -101,10 +105,7 @@ def test_get_iou():
 
 
 def test_get_robustness_score():
-    n_misses_allowed = 10
-    iou_threshold = 0.1
-    err_3d_threshold = 100
-    ar = AnchorResults(n_misses_allowed, iou_threshold, err_3d_threshold)
+    ar = AnchorResults(0, 0, 0)
     # 25 / (40 + 10) = 25 / 50 = 0.5
     ar.n_visible_and_not_diff = 40
     ar.n_excessive_frames = 10
@@ -131,10 +132,7 @@ def test_get_accuracy_score():
 
 
 def test_get_error_2D_score():
-    n_misses_allowed = 10
-    iou_threshold = 0.1
-    err_3d_threshold = 1000
-    ar = AnchorResults(n_misses_allowed, iou_threshold, err_3d_threshold)
+    ar = AnchorResults(0, 0, 0)
     ar.err_2d = [25.0, 5.0, 20.0, 50.0]
     err_2d_std, err_2d, n_f_2d = ar.get_error_2D_score()
     assert(err_2d_std == pytest.approx(16.2, 0.01))
@@ -153,10 +151,7 @@ def test_get_error_2D_score():
 
 
 def test_get_error_3D_score():
-    n_misses_allowed = 10
-    iou_threshold = 0.1
-    err_3d_threshold = 1000
-    ar = AnchorResults(n_misses_allowed, iou_threshold, err_3d_threshold)
+    ar = AnchorResults(0, 0, 0)
     ar.err_3d = [5.0, 5.0, 10.0, 10.0]
     err_3d_std, err_3d, n_f_3d = ar.get_error_3D_score()
     assert(err_3d_std == 2.5)

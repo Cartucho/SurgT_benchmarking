@@ -445,26 +445,26 @@ class AnchorResults:
         # If track didn't fail yet, check if it did in this current image frame
         flag_track_fail_2d = False
         if not is_track_fail_2d:
-            flag_track_fail_2d = (self.n_misses_successive_2d > self.n_misses_allowed)
+            flag_track_fail_2d = (self.n_misses_successive_2d == self.n_misses_allowed)
+            assert(self.n_misses_successive_2d <= self.n_misses_allowed)
         flag_track_fail_3d = False
         if not is_track_fail_3d:
-            flag_track_fail_3d = (self.n_misses_successive_3d > self.n_misses_allowed)
+            flag_track_fail_3d = (self.n_misses_successive_3d == self.n_misses_allowed)
+            assert(self.n_misses_successive_3d <= self.n_misses_allowed)
         return flag_track_fail_2d, flag_track_fail_3d, iou
 
 
     def use_scores_before_failure_2d(self):
         """
-            Delete the last `n_misses_allowed + 1` scores, since tracker failed,
+            Delete the last `n_misses_allowed` scores, since tracker failed,
               so that the tracking failure does not affect the scores.
         """
-        n_scores_to_delete = self.n_misses_allowed + 1
-        self.iou_list = self.iou_list[:-n_scores_to_delete]
-        self.err_2d = self.err_2d[:-n_scores_to_delete]
+        self.iou_list = self.iou_list[:-self.n_misses_allowed]
+        self.err_2d = self.err_2d[:-self.n_misses_allowed]
 
 
     def use_scores_before_failure_3d(self):
-        n_scores_to_delete = self.n_misses_allowed + 1
-        self.err_3d = self.err_3d[:-n_scores_to_delete]
+        self.err_3d = self.err_3d[:-self.n_misses_allowed]
 
 
     def get_bbox_centr(self, bbox):

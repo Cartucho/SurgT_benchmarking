@@ -2,56 +2,13 @@ import pytest
 from src.evaluate import AnchorResults, EAO_Rank
 
 
-def test_iou():
-    n_misses_allowed = 10
-    iou_threshold = 0.1
-    err_3d_threshold = 1000
-    ar = AnchorResults(n_misses_allowed, iou_threshold, err_3d_threshold)
-    # Empty intersection
-    bbox_gt = (0, 0, 2, 2)
-    bbox_p = (5, 5, 2, 2)
-    assert(ar.get_iou(bbox_gt, bbox_p) == 0.0)
-    bbox_gt = (0, 0, 2, 2)
-    bbox_p = (2, 2, 2, 2)
-    assert(ar.get_iou(bbox_gt, bbox_p) == 0.0)
-    # Full intersection
-    bbox_gt = (0, 0, 2, 2)
-    bbox_p = (0, 0, 2, 2)
-    assert(ar.get_iou(bbox_gt, bbox_p) == 1.0)
-    bbox_gt = (5, 5, 10, 10)
-    bbox_p = (5, 5, 10, 10)
-    assert(ar.get_iou(bbox_gt, bbox_p) == 1.0)
-    # Partial intersection
-    bbox_gt = (0, 0, 2, 2)
-    bbox_p = (1, 1, 2, 2)
-    assert(ar.get_iou(bbox_gt, bbox_p) == pytest.approx(0.142, 0.01))
-    bbox_gt = (0, 0, 2, 2)
-    bbox_p = (1, 0, 2, 2)
-    assert(ar.get_iou(bbox_gt, bbox_p) == pytest.approx(0.333, 0.01))
+""" Test Video class """
+#TODO
 
+""" Test Statistics class """
+#TODO
 
-def test_robustness():
-    n_misses_allowed = 10
-    iou_threshold = 0.1
-    err_3d_threshold = 1000
-    ar = AnchorResults(n_misses_allowed, iou_threshold, err_3d_threshold)
-    ar.robustness_frames_counter = 25
-    ar.n_visible_and_not_diff = 40
-    ar.n_excessive_frames = 10
-    rob = ar.get_robustness_score(25)
-    assert(rob == 0.5) # 25 / (40 + 10)
-
-
-def test_accuracy():
-    n_misses_allowed = 10
-    iou_threshold = 0.1
-    err_3d_threshold = 1000
-    ar = AnchorResults(n_misses_allowed, iou_threshold, err_3d_threshold)
-    ar.iou_list = [1.0, 1.0, 0.5, 0.5]
-    ar.n_visible_and_not_diff = 4
-    acc = ar.get_accuracy_score()
-    assert(acc == 0.75)
-
+""" Test EAO_Rank class """
 
 def test_EAO_Rank():
     # Empty sequence
@@ -106,3 +63,68 @@ def test_EAO_Rank():
     assert(eao_curve[1] == 0.25)
     assert(eao_curve[2] == 0.0)
     assert(eao_curve[3] == 0.36075)
+
+""" Test SSeq class """
+# TODO
+
+""" Test KptSubSequences class """
+# TODO
+
+""" Test AnchorResults class """
+
+def test_get_iou():
+    n_misses_allowed = 10
+    iou_threshold = 0.1
+    err_3d_threshold = 100
+    ar = AnchorResults(n_misses_allowed, iou_threshold, err_3d_threshold)
+    # Empty intersection
+    bbox_gt = (0, 0, 2, 2)
+    bbox_p = (5, 5, 2, 2)
+    assert(ar.get_iou(bbox_gt, bbox_p) == 0.0)
+    bbox_gt = (0, 0, 2, 2)
+    bbox_p = (2, 2, 2, 2)
+    assert(ar.get_iou(bbox_gt, bbox_p) == 0.0)
+    # Full intersection
+    bbox_gt = (0, 0, 2, 2)
+    bbox_p = (0, 0, 2, 2)
+    assert(ar.get_iou(bbox_gt, bbox_p) == 1.0)
+    bbox_gt = (5, 5, 10, 10)
+    bbox_p = (5, 5, 10, 10)
+    assert(ar.get_iou(bbox_gt, bbox_p) == 1.0)
+    # Partial intersection
+    bbox_gt = (0, 0, 2, 2)
+    bbox_p = (1, 1, 2, 2)
+    assert(ar.get_iou(bbox_gt, bbox_p) == pytest.approx(0.142, 0.01))
+    bbox_gt = (0, 0, 2, 2)
+    bbox_p = (1, 0, 2, 2)
+    assert(ar.get_iou(bbox_gt, bbox_p) == pytest.approx(0.333, 0.01))
+
+
+def test_get_robustness_score():
+    n_misses_allowed = 10
+    iou_threshold = 0.1
+    err_3d_threshold = 100
+    ar = AnchorResults(n_misses_allowed, iou_threshold, err_3d_threshold)
+    # 25 / (40 + 10) = 25 / 50 = 0.5
+    ar.n_visible_and_not_diff = 40
+    ar.n_excessive_frames = 10
+    rob = ar.get_robustness_score(25)
+    assert(rob == 0.5)
+    # 40 / (40 + 0) = 25 / 50 = 0.5
+    ar.n_visible_and_not_diff = 40
+    ar.n_excessive_frames = 0
+    rob = ar.get_robustness_score(40)
+    assert(rob == 1.0)
+
+
+def test_get_accuracy_score():
+    n_misses_allowed = 10
+    iou_threshold = 0.1
+    err_3d_threshold = 1000
+    ar = AnchorResults(n_misses_allowed, iou_threshold, err_3d_threshold)
+    ar.iou_list = [1.0, 1.0, 0.5, 0.5]
+    acc = ar.get_accuracy_score()
+    assert(acc == 0.75)
+
+""" Test class-less functions """
+# TODO

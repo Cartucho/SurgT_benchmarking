@@ -73,6 +73,14 @@ def test_EAO_Rank():
 
 """ Test AnchorResults class """
 
+def test_use_scores_before_failure_3d():
+    ar = AnchorResults(10, 0, 0)
+    l = 10000
+    ar.err_3d = [5., l, l, l, l, l, l, l, l, l, l, l] # large error 11 times, trigger 3D fail
+    ar.use_scores_before_failure_3d()
+    assert(ar.err_3d == [5])
+
+
 def test_get_bbox_centr():
     ar = AnchorResults(0, 0, 0)
     bbox = (0, 0, 100, 100)

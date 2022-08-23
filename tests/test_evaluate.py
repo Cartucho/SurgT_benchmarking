@@ -110,7 +110,7 @@ def test_get_robustness_score():
     ar.n_excessive_frames = 10
     rob = ar.get_robustness_score(25)
     assert(rob == 0.5)
-    # 40 / (40 + 0) = 25 / 50 = 0.5
+    # 40 / (40 + 0) = 40 / 40 = 1.0
     ar.n_visible_and_not_diff = 40
     ar.n_excessive_frames = 0
     rob = ar.get_robustness_score(40)
@@ -125,6 +125,23 @@ def test_get_accuracy_score():
     ar.iou_list = [1.0, 1.0, 0.5, 0.5]
     acc = ar.get_accuracy_score()
     assert(acc == 0.75)
+    ar.iou_list = [1.0, 1.0, "error_no_prediction", 0.5, 0.5, "error_no_prediction"]
+    acc = ar.get_accuracy_score()
+    assert(acc == 0.75)
+
+
+def test_get_error_2D_score():
+    n_misses_allowed = 10
+    iou_threshold = 0.1
+    err_3d_threshold = 1000
+    ar = AnchorResults(n_misses_allowed, iou_threshold, err_3d_threshold)
+    ar.err_2d = [25.0, 5.0, 20.0, 50.0]
+    err_2d_std, err_2d, n_f_2d = ar.get_error_2D_score()
+    assert(pytest.approx(err_2d_std, 16.2))
+    assert(err_2d == 25.)
+    assert(n_f_2d == 4)
+
+
 
 """ Test class-less functions """
 # TODO

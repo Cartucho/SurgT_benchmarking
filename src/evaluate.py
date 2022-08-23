@@ -550,8 +550,7 @@ class AnchorResults:
         iou_list_filtered = [value for value in self.iou_list if value != "error_no_prediction"]
         if not iou_list_filtered:
             return 0.0
-        if self.n_visible_and_not_diff > 0:
-            acc = np.mean(iou_list_filtered)
+        acc = np.mean(iou_list_filtered)
         assert(acc >= 0.0 and acc <= 1.0)
         return acc
 

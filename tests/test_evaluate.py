@@ -94,6 +94,19 @@ def test_get_l2_norm():
     assert(err_3d == pytest.approx(3.74, 0.01))
 
 
+def test_get_3d_pt():
+    ar = AnchorResults(0, 0, 0)
+    ar.Q = np.array([[1., 0., 0., -400.],
+                     [0., 1., 0., -500.],
+                     [0., 0., 0.,  300.],
+                     [0., 0., 0.2,   0.]])
+    pt_3d = ar.get_3d_pt(40, 10, 10)
+    assert(pt_3d[0] == pytest.approx(-48.75, 0.01))
+    assert(pt_3d[1] == pytest.approx(-61.2, 0.01))
+    z = (ar.Q[2, 3] * (1./ar.Q[3, 2])) / 40. # f*b/disp
+    assert(pt_3d[2] == pytest.approx(z, 0.01))
+
+
 def test_get_iou():
     ar = AnchorResults(0, 0, 0)
     # Empty intersection

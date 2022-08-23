@@ -1,4 +1,5 @@
 import pytest
+import numpy as np
 from src.evaluate import AnchorResults, EAO_Rank
 
 
@@ -83,6 +84,14 @@ def test_get_bbox_centr():
     bbox = (50, 50, 1, 1)
     centre = ar.get_bbox_centr(bbox)
     assert(centre[0] == 50.5 and centre[1] == 50.5)
+
+
+def test_get_l2_norm():
+    ar = AnchorResults(0, 0, 0)
+    err_2d = ar.get_l2_norm(np.array([10., 50.]), np.array([20., 50.]))
+    assert(err_2d == pytest.approx(10., 0.01))
+    err_3d = ar.get_l2_norm(np.array([10., 10., 10.]), np.array([11., 12., 13.]))
+    assert(err_3d == pytest.approx(3.74, 0.01))
 
 
 def test_get_iou():

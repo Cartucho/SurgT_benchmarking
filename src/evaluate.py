@@ -468,6 +468,7 @@ class AnchorResults:
 
 
     def get_bbox_centr(self, bbox):
+        """ bbox defined in get_bbox_gt() """
         centr_u = float(bbox[0] + (bbox[2] / 2.))
         centr_v = float(bbox[1] + (bbox[3] / 2.))
         return np.array([centr_u, centr_v])
@@ -602,6 +603,7 @@ class AnchorResults:
 
 
 def get_bbox_corners(bbox):
+    """ bbox defined in get_bbox_gt() """
     top_left = (bbox[0], bbox[1])
     bot_right = (bbox[0] + bbox[2], bbox[1] + bbox[3])
     return top_left, bot_right

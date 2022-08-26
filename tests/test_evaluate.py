@@ -22,16 +22,16 @@ def test_append_stats():
     ar.get_full_metric(stats_anchor)
     # Append stats and assert
     stats.append_stats(stats_anchor)
-    assert(stats.acc[0] == pytest.approx(0.4, 0.01))
-    assert(stats.n_f_rob[0] == 20) # n_visible_and_not_diff + n_excessive_frames
-    assert(stats.rob_2d[0] == pytest.approx(2./20, 0.01)) # rob_frames_counter_2d / n_f_rob
-    assert(stats.rob_3d[0] == pytest.approx(3./20, 0.01)) # rob_frames_counter_3d / n_f_rob
-    assert(stats.err_2d[0] == pytest.approx(13.34, 0.01))
-    assert(stats.err_2d_std[0] == pytest.approx(21.91, 0.01))
-    assert(stats.err_3d[0] == 1.3)
-    assert(stats.err_3d_std[0] == pytest.approx(0.707, 0.01))
-    assert(stats.n_f_2d[0] == 4)
-    assert(stats.n_f_3d[0] == 5)
+    assert stats.acc[0] == pytest.approx(0.4, 0.01)
+    assert stats.n_f_rob[0] == 20 # n_visible_and_not_diff + n_excessive_frames
+    assert stats.rob_2d[0] == pytest.approx(2./20, 0.01) # rob_frames_counter_2d / n_f_rob
+    assert stats.rob_3d[0] == pytest.approx(3./20, 0.01) # rob_frames_counter_3d / n_f_rob
+    assert stats.err_2d[0] == pytest.approx(13.34, 0.01)
+    assert stats.err_2d_std[0] == pytest.approx(21.91, 0.01)
+    assert stats.err_3d[0] == 1.3
+    assert stats.err_3d_std[0] == pytest.approx(0.707, 0.01)
+    assert stats.n_f_2d[0] == 4
+    assert stats.n_f_3d[0] == 5
 
 
 def test_merge_stats():
@@ -58,20 +58,20 @@ def test_merge_stats():
             ar.rob_frames_counter_3d = 4
         ar.get_full_metric(stats_anchor)
         stats.append_stats(stats_anchor)
-    assert(stats.n_f_rob == [20, 10]) # n_visible_and_not_diff + n_excessive_frames: (10+10), (7+3)
-    assert(stats.rob_2d == [0.1, 0.3]) # 2/20, 3/10
-    assert(stats.rob_3d == [0.15, 0.4]) # 3/20, 4/10
+    assert stats.n_f_rob == [20, 10] # n_visible_and_not_diff + n_excessive_frames: (10+10), (7+3)
+    assert stats.rob_2d == [0.1, 0.3] # 2/20, 3/10
+    assert stats.rob_3d == [0.15, 0.4] # 3/20, 4/10
     stats.merge_stats()
-    assert(stats.n_f_rob == 30)
-    assert(stats.rob_2d == pytest.approx(1/6., 0.01)) # 0.1 * (20/30) + 0.3 * (10/30)
-    assert(stats.rob_3d == pytest.approx(0.2333, 0.01)) # 0.15 * (20/30) + 0.4 * (10/30)
-    assert(stats.n_f_2d == 10) # 4 + 6
-    assert(stats.acc == pytest.approx(0.58, 0.01)) # 0.4 * (4/10) + 0.7 * (6/10)
-    assert(stats.err_2d == pytest.approx(14.228, 0.01)) # 13.34 * (4/10) + 14.82 * (6/10)
-    assert(stats.err_2d_std == pytest.approx(16.019, 0.01))
-    assert(stats.n_f_3d == 11) # 5 + 6
-    assert(stats.err_3d == pytest.approx(1.245, 0.01)) # 1.3 * (5/11) + 1.2 * (6/11)
-    assert(stats.err_3d_std == pytest.approx(0.694, 0.01))
+    assert stats.n_f_rob == 30
+    assert stats.rob_2d == pytest.approx(1/6., 0.01) # 0.1 * (20/30) + 0.3 * (10/30)
+    assert stats.rob_3d == pytest.approx(0.2333, 0.01) # 0.15 * (20/30) + 0.4 * (10/30)
+    assert stats.n_f_2d == 10 # 4 + 6
+    assert stats.acc == pytest.approx(0.58, 0.01) # 0.4 * (4/10) + 0.7 * (6/10)
+    assert stats.err_2d == pytest.approx(14.228, 0.01) # 13.34 * (4/10) + 14.82 * (6/10)
+    assert stats.err_2d_std == pytest.approx(16.019, 0.01)
+    assert stats.n_f_3d == 11 # 5 + 6
+    assert stats.err_3d == pytest.approx(1.245, 0.01) # 1.3 * (5/11) + 1.2 * (6/11)
+    assert stats.err_3d_std == pytest.approx(0.694, 0.01)
 
 
 """ Test EAO_Rank class """
@@ -181,21 +181,24 @@ def test_get_bbox_centr():
     ar = AnchorResults(0, 0, 0)
     bbox = (0, 0, 100, 100)
     centre = ar.get_bbox_centr(bbox)
-    assert(centre[0] == 50 and centre[1] == 50)
+    assert centre[0] == 50
+    assert centre[1] == 50
     bbox = (50, 10, 50, 100)
     centre = ar.get_bbox_centr(bbox)
-    assert(centre[0] == 75. and centre[1] == 60.)
+    assert centre[0] == 75.
+    assert centre[1] == 60.
     bbox = (50, 50, 1, 1)
     centre = ar.get_bbox_centr(bbox)
-    assert(centre[0] == 50.5 and centre[1] == 50.5)
+    assert centre[0] == 50.5
+    assert centre[1] == 50.5
 
 
 def test_get_l2_norm():
     ar = AnchorResults(0, 0, 0)
     err_2d = ar.get_l2_norm(np.array([10., 50.]), np.array([20., 50.]))
-    assert(err_2d == pytest.approx(10., 0.01))
+    assert err_2d == pytest.approx(10., 0.01)
     err_3d = ar.get_l2_norm(np.array([10., 10., 10.]), np.array([11., 12., 13.]))
-    assert(err_3d == pytest.approx(3.74, 0.01))
+    assert err_3d == pytest.approx(3.74, 0.01)
 
 
 def test_get_3d_pt():
@@ -205,10 +208,10 @@ def test_get_3d_pt():
                      [0., 0., 0.,  300.],
                      [0., 0., 0.2,   0.]])
     pt_3d = ar.get_3d_pt(40, 10, 10)
-    assert(pt_3d[0] == pytest.approx(-48.75, 0.01))
-    assert(pt_3d[1] == pytest.approx(-61.2, 0.01))
+    assert pt_3d[0] == pytest.approx(-48.75, 0.01)
+    assert pt_3d[1] == pytest.approx(-61.2, 0.01)
     z = (ar.Q[2, 3] * (1./ar.Q[3, 2])) / 40. # f*b/disp
-    assert(pt_3d[2] == pytest.approx(z, 0.01))
+    assert pt_3d[2] == pytest.approx(z, 0.01)
 
 
 def test_l2_norm_errors():
@@ -218,13 +221,13 @@ def test_l2_norm_errors():
     bbox2_gt = (50, 50, 50, 50)
     bbox2_p = (50, 50, 50, 50)
     ar.calculate_l2_norm_errors(bbox1_gt, bbox1_p, bbox2_gt, bbox2_p, True, True)
-    assert(not ar.err_2d)
-    assert(not ar.err_3d)
+    assert not ar.err_2d
+    assert not ar.err_3d
     ar.calculate_l2_norm_errors(bbox1_gt, bbox1_p, bbox2_gt, bbox2_p, False, False)
-    assert(ar.err_2d[0] == 0)
-    assert(ar.n_misses_successive_2d == 0)
-    assert(ar.err_3d[0] == "error_non_positive_disp")
-    assert(ar.n_misses_successive_3d == 1)
+    assert ar.err_2d[0] == 0
+    assert ar.n_misses_successive_2d == 0
+    assert ar.err_3d[0] == "error_non_positive_disp"
+    assert ar.n_misses_successive_3d == 1
 
 
 def test_get_iou():
@@ -232,24 +235,24 @@ def test_get_iou():
     # Empty intersection
     bbox_gt = (0, 0, 2, 2)
     bbox_p = (5, 5, 2, 2)
-    assert(ar.get_iou(bbox_gt, bbox_p) == 0.0)
+    assert ar.get_iou(bbox_gt, bbox_p) == 0.0
     bbox_gt = (0, 0, 2, 2)
     bbox_p = (2, 2, 2, 2)
-    assert(ar.get_iou(bbox_gt, bbox_p) == 0.0)
+    assert ar.get_iou(bbox_gt, bbox_p) == 0.0
     # Full intersection
     bbox_gt = (0, 0, 2, 2)
     bbox_p = (0, 0, 2, 2)
-    assert(ar.get_iou(bbox_gt, bbox_p) == 1.0)
+    assert ar.get_iou(bbox_gt, bbox_p) == 1.0
     bbox_gt = (5, 5, 10, 10)
     bbox_p = (5, 5, 10, 10)
-    assert(ar.get_iou(bbox_gt, bbox_p) == 1.0)
+    assert ar.get_iou(bbox_gt, bbox_p) == 1.0
     # Partial intersection
     bbox_gt = (0, 0, 2, 2)
     bbox_p = (1, 1, 2, 2)
-    assert(ar.get_iou(bbox_gt, bbox_p) == pytest.approx(0.142, 0.01))
+    assert ar.get_iou(bbox_gt, bbox_p) == pytest.approx(0.142, 0.01)
     bbox_gt = (0, 0, 2, 2)
     bbox_p = (1, 0, 2, 2)
-    assert(ar.get_iou(bbox_gt, bbox_p) == pytest.approx(0.333, 0.01))
+    assert ar.get_iou(bbox_gt, bbox_p) == pytest.approx(0.333, 0.01)
 
 
 def test_get_robustness_score():
@@ -258,12 +261,12 @@ def test_get_robustness_score():
     ar.n_visible_and_not_diff = 40
     ar.n_excessive_frames = 10
     rob = ar.get_robustness_score(25)
-    assert(rob == 0.5)
+    assert rob == 0.5
     # 40 / (40 + 0) = 40 / 40 = 1.0
     ar.n_visible_and_not_diff = 40
     ar.n_excessive_frames = 0
     rob = ar.get_robustness_score(40)
-    assert(rob == 1.0)
+    assert rob == 1.0
 
 
 def test_get_accuracy_score():
@@ -273,56 +276,56 @@ def test_get_accuracy_score():
     ar = AnchorResults(n_misses_allowed, iou_threshold, err_3d_threshold)
     ar.iou_list = [1.0, 1.0, 0.5, 0.5]
     acc = ar.get_accuracy_score()
-    assert(acc == 0.75)
+    assert acc == 0.75
     ar.iou_list = [1.0, 1.0, "error_no_prediction", 0.5, 0.5]
     acc = ar.get_accuracy_score()
-    assert(acc == 0.75)
+    assert acc == 0.75
 
 
 def test_get_error_2D_score():
     ar = AnchorResults(0, 0, 0)
     ar.err_2d = [25.0, 5.0, 20.0, 50.0]
     err_2d_std, err_2d, n_f_2d = ar.get_error_2D_score()
-    assert(err_2d_std == pytest.approx(16.2, 0.01))
-    assert(err_2d == 25.)
-    assert(n_f_2d == 4)
+    assert err_2d_std == pytest.approx(16.2, 0.01)
+    assert err_2d == 25.
+    assert n_f_2d == 4
     ar.err_2d = [25.0, 5.0, "error_no_prediction", 20.0, 50.0]
     err_2d_std, err_2d, n_f_2d = ar.get_error_2D_score()
-    assert(err_2d_std == pytest.approx(16.2, 0.01))
-    assert(err_2d == 25.)
-    assert(n_f_2d == 4)
+    assert err_2d_std == pytest.approx(16.2, 0.01)
+    assert err_2d == 25.
+    assert n_f_2d == 4
     ar.err_2d = [30.0, 30.0, 30.0, 30.0, 30.0]
     err_2d_std, err_2d, n_f_2d = ar.get_error_2D_score()
-    assert(err_2d_std == pytest.approx(0.0, 0.01))
-    assert(err_2d == 30.)
-    assert(n_f_2d == 5)
+    assert err_2d_std == pytest.approx(0.0, 0.01)
+    assert err_2d == 30.
+    assert n_f_2d == 5
 
 
 def test_get_error_3D_score():
     ar = AnchorResults(0, 0, 0)
     ar.err_3d = [5.0, 5.0, 10.0, 10.0]
     err_3d_std, err_3d, n_f_3d = ar.get_error_3D_score()
-    assert(err_3d_std == 2.5)
-    assert(err_3d == 7.5)
-    assert(n_f_3d == 4)
+    assert err_3d_std == 2.5
+    assert err_3d == 7.5
+    assert n_f_3d == 4
     ar.err_3d = [5.0, 5.0, "error_no_prediction", 10.0, 10.0, "error_non_positive_disp"]
     err_3d_std, err_3d, n_f_3d = ar.get_error_3D_score()
-    assert(err_3d_std == 2.5)
-    assert(err_3d == 7.5)
-    assert(n_f_3d == 4)
+    assert err_3d_std == 2.5
+    assert err_3d == 7.5
+    assert n_f_3d == 4
     ar.err_3d = [2.0, 5.0, 5.0, 10.0, 10.0, 30.0]
     err_3d_std, err_3d, n_f_3d = ar.get_error_3D_score()
-    assert(err_3d_std == pytest.approx(9.25, 0.01))
-    assert(err_3d == pytest.approx(10.33, 0.01))
-    assert(n_f_3d == 6)
+    assert err_3d_std == pytest.approx(9.25, 0.01)
+    assert err_3d == pytest.approx(10.33, 0.01)
+    assert n_f_3d == 6
     ar.err_3d = ["error_no_prediction", "error_no_prediction", "error_non_positive_disp"]
     err_3d_std, err_3d, n_f_3d = ar.get_error_3D_score()
-    assert(n_f_3d == 0)
+    assert n_f_3d == 0
     ar.err_3d = ["error_no_prediction", "error_no_prediction", 50.]
     err_3d_std, err_3d, n_f_3d = ar.get_error_3D_score()
-    assert(err_3d_std == 0)
-    assert(err_3d == 50.)
-    assert(n_f_3d == 1)
+    assert err_3d_std == 0
+    assert err_3d == 50.
+    assert n_f_3d == 1
 
 
 """ Test class-less functions """

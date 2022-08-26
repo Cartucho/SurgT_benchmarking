@@ -446,11 +446,11 @@ class AnchorResults:
         flag_track_fail_2d = False
         if not is_track_fail_2d:
             flag_track_fail_2d = (self.n_misses_successive_2d == self.n_misses_allowed)
-            assert(self.n_misses_successive_2d <= self.n_misses_allowed)
+            assert self.n_misses_successive_2d <= self.n_misses_allowed
         flag_track_fail_3d = False
         if not is_track_fail_3d:
             flag_track_fail_3d = (self.n_misses_successive_3d == self.n_misses_allowed)
-            assert(self.n_misses_successive_3d <= self.n_misses_allowed)
+            assert self.n_misses_successive_3d <= self.n_misses_allowed
         return flag_track_fail_2d, flag_track_fail_3d, iou
 
 
@@ -479,7 +479,7 @@ class AnchorResults:
 
 
     def get_3d_pt(self, disp, u, v):
-        assert(disp > 0) # This condition is tackled earlier in "calculate_l2_norm_errors()"
+        assert disp > 0 # This condition is tackled earlier in "calculate_l2_norm_errors()"
         pt_2d = np.array([[u],
                           [v],
                           [disp],
@@ -540,7 +540,8 @@ class AnchorResults:
         p_area = p_width * p_height
         union_area = gt_area + p_area - inter_area
         iou = inter_area / float(union_area)
-        assert(iou >= 0.0 and iou <= 1.0)
+        assert iou >= 0.0
+        assert iou <= 1.0
         return iou
 
 
@@ -550,7 +551,8 @@ class AnchorResults:
         if not iou_list_filtered:
             return 0.0
         acc = np.mean(iou_list_filtered)
-        assert(acc >= 0.0 and acc <= 1.0)
+        assert acc >= 0.0
+        assert acc <= 1.0
         return acc
 
 
@@ -559,7 +561,8 @@ class AnchorResults:
         denominator = self.n_visible_and_not_diff + self.n_excessive_frames
         if denominator > 0:
             rob = rob_frames_counter / denominator
-        assert(rob >= 0.0 and rob <= 1.0)
+        assert rob >= 0.0
+        assert rob <= 1.0
         return rob
 
 

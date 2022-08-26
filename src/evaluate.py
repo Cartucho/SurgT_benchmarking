@@ -584,7 +584,7 @@ class AnchorResults:
         """
         Only happens after all frames are processed, end of video for-loop!
         """
-        assert(len(self.iou_list) == len(self.err_2d))
+        assert len(self.iou_list) == len(self.err_2d)
         acc = self.get_accuracy_score()
         rob_2d = self.get_robustness_score(self.rob_frames_counter_2d)
         err_2d_std, err_2d, n_f_2d = self.get_error_2D_score()
@@ -741,7 +741,7 @@ def assess_keypoint(v, kpt_anchors, kss, stats_kpt, config_results, is_visualiza
         stats_kpt.append_stats(stats_anchor)
         # Re-start video for next anchor, or for next keypoint
         v.video_restart()
-    assert(len(stats_kpt.acc) == len(kpt_anchors)) # Check that we have a acc list for each anchor
+    assert len(stats_kpt.acc) == len(kpt_anchors) # Check that we have a acc list for each anchor
     stats_kpt.merge_stats()
 
 
@@ -761,7 +761,7 @@ def calculate_results_for_video(rank, stats_video, anchors, case_sample_path, is
         stats_video.append_stats(stats_kpt)
         rank.add_kpt_ss(kss)
     # Check that we have statistics for each of the keypoints
-    assert(len(stats_video.acc) == v.n_keypoints)
+    assert len(stats_video.acc) == v.n_keypoints
     stats_video.merge_stats()
     # Stop video after assessing all the keypoints of that specific video
     v.stop_video()

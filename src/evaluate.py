@@ -681,7 +681,7 @@ def assess_anchor(v, anch, ar, kss, is_visualization_off):
             bbox1_p, bbox2_p = t.tracker_update(im1, im2)
             if is_difficult:
                 # If `is_difficult` then the metrics are not be affected
-                continue
+                pass
             elif not is_visible_in_both_stereo:
                 # If it is not visible, the robustness score can still be affected
                 if (bbox1_p is not None and bbox1_gt is None) or\

@@ -1,13 +1,13 @@
 import pytest
 import numpy as np
-from src.evaluate import Statistics, AnchorResults, EAO_Rank
+from src.evaluate import Statistics, EAO_Rank, SSeq, KptSubSequences, AnchorResults
 
 
 """ Test Video class """
 #TODO
 
 """ Test Statistics class """
-def test_append_stats():
+def test_Statistics_append_stats():
     stats = Statistics()
     # Creating stats to be appended
     stats_anchor = Statistics()
@@ -34,7 +34,7 @@ def test_append_stats():
     assert stats.n_f_3d[0] == 5
 
 
-def test_merge_stats():
+def test_Statistics_merge_stats():
     stats = Statistics()
     for i in range(2): # Here we test the usage of two anchors with arbitrary values
         stats_anchor = Statistics()
@@ -131,13 +131,36 @@ def test_EAO_Rank():
     assert eao_curve[3] == 0.36075
 
 """ Test SSeq class """
-# TODO
+def test_SSeq_add_iou_score():
+    ss = SSeq()
+    ss.add_iou_score(10.)
+    ss.add_iou_score(5)
+    assert np.mean(ss.ss_iou_scores) == 7.5
+
 
 """ Test KptSubSequences class """
-# TODO
+def test_KptSubSequences_add_ss():
+    kss = KptSubSequences(10, 'path', 0)
+    kss.add_ss()
+    assert kss.kpt_all_ss is not None
+    kss.add_ss()
+    assert len(kss.kpt_all_ss) == 2
+
+
+def test_KptSubSequences_add_iou_score():
+    kss = KptSubSequences(10, 'path', 0)
+    kss.add_ss()
+    kss.add_iou_score(5.5, 0)
+    sseq = kss.kpt_all_ss[0]
+    assert sseq.ss_iou_scores == [5.5]
+    kss.add_ss()
+    kss.add_iou_score(12, 0)
+    sseq = kss.kpt_all_ss[1]
+    assert sseq.ss_iou_scores == [12]
+
 
 """ Test AnchorResults class """
-def test_calculate_bbox_metrics():
+def test_AnchorResults_calculate_bbox_metrics():
     ar = AnchorResults(10, 0.1, 100)
     bbox1_gt = (50, 50, 50, 50)
     bbox1_p = None
@@ -159,7 +182,7 @@ def test_calculate_bbox_metrics():
     assert ar.n_misses_successive_3d == 2 # Since disparity was still 0
 
 
-def test_use_scores_before_failure_2d():
+def test_AnchorResults_use_scores_before_failure_2d():
     ar = AnchorResults(10, 0, 0) # setting 10 to n_misses_allowed
     ar.iou_list = [0.5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     l = 10000
@@ -169,7 +192,7 @@ def test_use_scores_before_failure_2d():
     assert ar.err_2d == [5]
 
 
-def test_use_scores_before_failure_3d():
+def test_AnchorResults_use_scores_before_failure_3d():
     ar = AnchorResults(10, 0, 0) # setting 10 to n_misses_allowed
     l = 10000
     ar.err_3d = [5., l, l, l, l, l, l, l, l, l, l] # large error 10 times, trigger 3D fail
@@ -177,7 +200,7 @@ def test_use_scores_before_failure_3d():
     assert ar.err_3d == [5]
 
 
-def test_get_bbox_centr():
+def test_AnchorResults_get_bbox_centr():
     ar = AnchorResults(0, 0, 0)
     bbox = (0, 0, 100, 100)
     centre = ar.get_bbox_centr(bbox)
@@ -193,7 +216,7 @@ def test_get_bbox_centr():
     assert centre[1] == 50.5
 
 
-def test_get_l2_norm():
+def test_AnchorResults_get_l2_norm():
     ar = AnchorResults(0, 0, 0)
     err_2d = ar.get_l2_norm(np.array([10., 50.]), np.array([20., 50.]))
     assert err_2d == pytest.approx(10., 0.01)
@@ -201,7 +224,7 @@ def test_get_l2_norm():
     assert err_3d == pytest.approx(3.74, 0.01)
 
 
-def test_get_3d_pt():
+def test_AnchorResults_get_3d_pt():
     ar = AnchorResults(0, 0, 0)
     ar.Q = np.array([[1., 0., 0., -400.],
                      [0., 1., 0., -500.],
@@ -214,7 +237,7 @@ def test_get_3d_pt():
     assert pt_3d[2] == pytest.approx(z, 0.01)
 
 
-def test_l2_norm_errors():
+def test_AnchorResults_l2_norm_errors():
     ar = AnchorResults(10, 0.1, 100)
     bbox1_gt = (50, 50, 50, 50)
     bbox1_p = (50, 50, 50, 50)
@@ -230,7 +253,7 @@ def test_l2_norm_errors():
     assert ar.n_misses_successive_3d == 1
 
 
-def test_get_iou():
+def test_AnchorResults_get_iou():
     ar = AnchorResults(0, 0, 0)
     # Empty intersection
     bbox_gt = (0, 0, 2, 2)
@@ -255,7 +278,7 @@ def test_get_iou():
     assert ar.get_iou(bbox_gt, bbox_p) == pytest.approx(0.333, 0.01)
 
 
-def test_get_robustness_score():
+def test_AnchorResults_get_robustness_score():
     ar = AnchorResults(0, 0, 0)
     # 25 / (40 + 10) = 25 / 50 = 0.5
     ar.n_visible_and_not_diff = 40
@@ -269,7 +292,7 @@ def test_get_robustness_score():
     assert rob == 1.0
 
 
-def test_get_accuracy_score():
+def test_AnchorResults_get_accuracy_score():
     n_misses_allowed = 10
     iou_threshold = 0.1
     err_3d_threshold = 1000
@@ -282,7 +305,7 @@ def test_get_accuracy_score():
     assert acc == 0.75
 
 
-def test_get_error_2D_score():
+def test_AnchorResults_get_error_2D_score():
     ar = AnchorResults(0, 0, 0)
     ar.err_2d = [25.0, 5.0, 20.0, 50.0]
     err_2d_std, err_2d, n_f_2d = ar.get_error_2D_score()
@@ -301,7 +324,7 @@ def test_get_error_2D_score():
     assert n_f_2d == 5
 
 
-def test_get_error_3D_score():
+def test_AnchorResults_get_error_3D_score():
     ar = AnchorResults(0, 0, 0)
     ar.err_3d = [5.0, 5.0, 10.0, 10.0]
     err_3d_std, err_3d, n_f_3d = ar.get_error_3D_score()

@@ -81,20 +81,20 @@ def test_EAO_Rank():
     ss_list = []
     rank = EAO_Rank(0, 0)
     eao = rank.calculate_eao_score()
-    assert(eao == 0.0)
+    assert eao == 0.0
     # Single sequence
     ss_list = [[1., 1., 1.]]
     rank = EAO_Rank(0, len(ss_list[0]))
     rank.final_ss = ss_list
     rank.all_ss_len_max = len(ss_list[0])
     eao = rank.calculate_eao_score()
-    assert(eao == 1.0)
+    assert eao == 1.0
     ss_list = [[1., "ignore", 1.]]
     rank = EAO_Rank(0, len(ss_list[0]))
     rank.final_ss = ss_list
     rank.all_ss_len_max = len(ss_list[0])
     eao = rank.calculate_eao_score()
-    assert(eao == 1.0)
+    assert eao == 1.0
     # Multiple sequences
     ss_list = [[1.],
                [0.]]
@@ -102,14 +102,14 @@ def test_EAO_Rank():
     rank.final_ss = ss_list
     rank.all_ss_len_max = 1
     eao = rank.calculate_eao_score()
-    assert(eao == 0.5)
+    assert eao == 0.5
     ss_list = [["ignore"],
                [0.7215]]
     rank = EAO_Rank(0, len(ss_list[0]))
     rank.final_ss = ss_list
     rank.all_ss_len_max = 1
     eao = rank.calculate_eao_score()
-    assert(eao == 0.7215)
+    assert eao == 0.7215
     ss_list = [[1.0],
                [0.75],
                [0.5],
@@ -119,16 +119,16 @@ def test_EAO_Rank():
     rank.final_ss = ss_list
     rank.all_ss_len_max = 1
     eao = rank.calculate_eao_score()
-    assert(eao == 0.5)
+    assert eao == 0.5
     # Test curve
     ss_list = [[0.3605, 0.5, "ignore", 0.],
                [0.0000, 0.0,       0., 0.7215]]
     rank = EAO_Rank(0, len(ss_list[0]))
     eao_curve = rank.calculate_eao_curve(ss_list, len(ss_list[0]))
-    assert(eao_curve[0] == 0.18025)
-    assert(eao_curve[1] == 0.25)
-    assert(eao_curve[2] == 0.0)
-    assert(eao_curve[3] == 0.36075)
+    assert eao_curve[0] == 0.18025
+    assert eao_curve[1] == 0.25
+    assert eao_curve[2] == 0.0
+    assert eao_curve[3] == 0.36075
 
 """ Test SSeq class """
 # TODO
@@ -144,19 +144,19 @@ def test_calculate_bbox_metrics():
     bbox2_gt = (50, 50, 50, 50)
     bbox2_p = (50, 50, 50, 50)
     flag_track_fail_2d, flag_track_fail_3d, iou = ar.calculate_bbox_metrics(bbox1_gt, bbox1_p, bbox2_gt, bbox2_p, False, False)
-    assert(flag_track_fail_2d == False)
-    assert(flag_track_fail_3d == False)
-    assert(iou == 0)
-    assert(ar.n_misses_successive_2d == 1)
-    assert(ar.n_misses_successive_3d == 1)
-    assert(ar.iou_list[0] == "error_no_prediction")
-    assert(ar.err_2d[0] == "error_no_prediction")
-    assert(ar.err_3d[0] == "error_no_prediction")
+    assert flag_track_fail_2d == False
+    assert flag_track_fail_3d == False
+    assert iou == 0
+    assert ar.n_misses_successive_2d == 1
+    assert ar.n_misses_successive_3d == 1
+    assert ar.iou_list[0] == "error_no_prediction"
+    assert ar.err_2d[0] == "error_no_prediction"
+    assert ar.err_3d[0] == "error_no_prediction"
     bbox1_p = (50, 50, 50, 50) # Replace None, with the correct bbox
     ar.calculate_bbox_metrics(bbox1_gt, bbox1_p, bbox2_gt, bbox2_p, False, False)
-    assert(ar.iou_list[1] == 1.)
-    assert(ar.n_misses_successive_2d == 0)
-    assert(ar.n_misses_successive_3d == 2) # Since disparity was still 0
+    assert ar.iou_list[1] == 1.
+    assert ar.n_misses_successive_2d == 0
+    assert ar.n_misses_successive_3d == 2 # Since disparity was still 0
 
 
 def test_use_scores_before_failure_2d():
@@ -165,8 +165,8 @@ def test_use_scores_before_failure_2d():
     l = 10000
     ar.err_2d = [5., l, l, l, l, l, l, l, l, l, l] # large error 10 times, trigger 3D fail
     ar.use_scores_before_failure_2d()
-    assert(ar.iou_list == [0.5])
-    assert(ar.err_2d == [5])
+    assert ar.iou_list == [0.5]
+    assert ar.err_2d == [5]
 
 
 def test_use_scores_before_failure_3d():
@@ -174,7 +174,7 @@ def test_use_scores_before_failure_3d():
     l = 10000
     ar.err_3d = [5., l, l, l, l, l, l, l, l, l, l] # large error 10 times, trigger 3D fail
     ar.use_scores_before_failure_3d()
-    assert(ar.err_3d == [5])
+    assert ar.err_3d == [5]
 
 
 def test_get_bbox_centr():

@@ -1,13 +1,78 @@
 import pytest
 import numpy as np
-from src.evaluate import AnchorResults, EAO_Rank
+from src.evaluate import Statistics, AnchorResults, EAO_Rank
 
 
 """ Test Video class """
 #TODO
 
 """ Test Statistics class """
-#TODO
+def test_append_stats():
+    stats = Statistics()
+    # Creating stats to be appended
+    stats_anchor = Statistics()
+    ar = AnchorResults(10, 0.5, 1)
+    ar.iou_list = [0.7, 0.1, 0, 0.8]
+    ar.err_2d = [0, 51.25, 0, 2.1]
+    ar.n_visible_and_not_diff = 10
+    ar.n_excessive_frames = 10
+    ar.rob_frames_counter_2d = 2
+    ar.rob_frames_counter_3d = 3
+    ar.err_3d = [2.7, 0.9, 1.1, 0.8, 1.0]
+    ar.get_full_metric(stats_anchor)
+    # Append stats and assert
+    stats.append_stats(stats_anchor)
+    assert(stats.acc[0] == pytest.approx(0.4, 0.01))
+    assert(stats.n_f_rob[0] == 20) # n_visible_and_not_diff + n_excessive_frames
+    assert(stats.rob_2d[0] == pytest.approx(2./20, 0.01)) # rob_frames_counter_2d / n_f_rob
+    assert(stats.rob_3d[0] == pytest.approx(3./20, 0.01)) # rob_frames_counter_3d / n_f_rob
+    assert(stats.err_2d[0] == pytest.approx(13.34, 0.01))
+    assert(stats.err_2d_std[0] == pytest.approx(21.91, 0.01))
+    assert(stats.err_3d[0] == 1.3)
+    assert(stats.err_3d_std[0] == pytest.approx(0.707, 0.01))
+    assert(stats.n_f_2d[0] == 4)
+    assert(stats.n_f_3d[0] == 5)
+
+
+def test_merge_stats():
+    stats = Statistics()
+    for i in range(2): # Here we test the usage of two anchors with arbitrary values
+        stats_anchor = Statistics()
+        if i == 0:
+            ar = AnchorResults(10, 0.5, 1)
+            ar.iou_list = [0.7, 0.1, 0, 0.8] # Avg. 0.4
+            ar.err_2d = [0, 51.25, 0, 2.1] # Avg. 13.34
+            ar.err_3d = [2.7, 0.9, 1.1, 0.8, 1.0] # Avg. 1.3
+            ar.n_visible_and_not_diff = 10
+            ar.n_excessive_frames = 10
+            ar.rob_frames_counter_2d = 2
+            ar.rob_frames_counter_3d = 3
+        elif i == 1:
+            ar = AnchorResults(10, 0.6, 1)
+            ar.iou_list = [0.5, 0.5, 0.6, 0.9, 0.8, 0.9] # Avg. 0.7
+            ar.err_2d = [0.9, 12, 14, 2, 35, 25] # Avg. 14.82
+            ar.err_3d = [2.7, 0.9, 1.1, 0.8, 1.0, 0.7] # Avg. 1.2
+            ar.n_visible_and_not_diff = 7
+            ar.n_excessive_frames = 3
+            ar.rob_frames_counter_2d = 3
+            ar.rob_frames_counter_3d = 4
+        ar.get_full_metric(stats_anchor)
+        stats.append_stats(stats_anchor)
+    assert(stats.n_f_rob == [20, 10]) # n_visible_and_not_diff + n_excessive_frames: (10+10), (7+3)
+    assert(stats.rob_2d == [0.1, 0.3]) # 2/20, 3/10
+    assert(stats.rob_3d == [0.15, 0.4]) # 3/20, 4/10
+    stats.merge_stats()
+    assert(stats.n_f_rob == 30)
+    assert(stats.rob_2d == pytest.approx(1/6., 0.01)) # 0.1 * (20/30) + 0.3 * (10/30)
+    assert(stats.rob_3d == pytest.approx(0.2333, 0.01)) # 0.15 * (20/30) + 0.4 * (10/30)
+    assert(stats.n_f_2d == 10) # 4 + 6
+    assert(stats.acc == pytest.approx(0.58, 0.01)) # 0.4 * (4/10) + 0.7 * (6/10)
+    assert(stats.err_2d == pytest.approx(14.228, 0.01)) # 13.34 * (4/10) + 14.82 * (6/10)
+    assert(stats.err_2d_std == pytest.approx(16.019, 0.01))
+    assert(stats.n_f_3d == 11) # 5 + 6
+    assert(stats.err_3d == pytest.approx(1.245, 0.01)) # 1.3 * (5/11) + 1.2 * (6/11)
+    assert(stats.err_3d_std == pytest.approx(0.694, 0.01))
+
 
 """ Test EAO_Rank class """
 

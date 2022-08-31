@@ -703,7 +703,7 @@ def assess_anchor(v, anch, ar, kss, is_visualization_off):
 
 
         # Show animation of the tracker
-        is_track_fail_both = is_track_fail_2d or flag_track_fail_3d
+        is_track_fail_both = is_track_fail_2d or is_track_fail_3d
         if not is_visualization_off and not is_track_fail_both:
             frame_aug = draw_bb_in_frame(im1, im2,
                                          bbox1_gt, bbox1_p,

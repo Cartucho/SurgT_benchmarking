@@ -4,7 +4,7 @@ from src.evaluate import evaluate_method
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Tool to label stereo matches')
+    parser = argparse.ArgumentParser(description='Tool to benchmark soft tissue trackers')
     parser.add_argument('--config', type=str, default='config.yaml')
     parser.add_argument('-nv', '--no-visualization', help="no visualization is shown.", action="store_true")
     args = parser.parse_args()

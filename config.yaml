@@ -5,7 +5,7 @@ results:
     err_3d_threshold: 100 # [mm]
 validation:
     is_to_download: True # Set to True to download the `validation` data!
-    is_to_evaluate: True # Set to True to calculate the `validation` results!
+    is_to_evaluate: True  # Set to True to calculate the `validation` results!
     dir: "data"
     subdir: "validation"
     N_min: 150 # Frame n for the EAO, N_min = mean(sub_seq_lengths) - std(sub_seq_lengths)
@@ -127,23 +127,201 @@ validation:
                }
            }
 test: # This same code will be used to get the final results at the end of the challenge
-    is_to_download: False # Set to True to download the `test` data!
-    is_to_evaluate: False # Set to True to calculate the `test` results!
+    is_to_download: True # Set to True to download the `test` data!
+    is_to_evaluate: True # Set to True to calculate the `test` results!
     dir: "data"
     subdir: "test"
-    N_min: None # Frame n for the EAO, N_low = mean(sub_seq_lengths) - std(sub_seq_lengths)
-    N_max: None # Frame n for the EAO, N_high = mean(sub_seq_lengths) + std(sub_seq_lengths)
-    anchors: {"case_1": None,
-              "case_2": None,
-              "case_3": None,
-              "case_4": None,
-              "case_5": None,
-              "case_6": None,
-           }
-    cases: {"case_1": None, # Links hidden until the challenge's end
-            "case_2": None, # Links hidden until the challenge's end
-            "case_3": None, # Links hidden until the challenge's end
-            "case_4": None, # Links hidden until the challenge's end
-            "case_5": None, # Links hidden until the challenge's end
-            "case_6": None, # Links hidden until the challenge's end
+    N_min: 140 # Frame n for the EAO, N_min = mean(sub_seq_lengths) - std(sub_seq_lengths)
+    N_max: 683 # Frame n for the EAO, N_max = mean(sub_seq_lengths) + std(sub_seq_lengths)
+    anchors: {"case_1":
+               {
+                 "1": [[0,50,100,150,200,250,300,350,400,450,500,550,600,650,700,750,800,850,900]], # One inner list of anchors [] per bounding-box
+                 "2": [[0,218,250,300,425,450,500,550,600]],
+                 "3": [[0,50,100,150,200,250,300,350,400,450,500,550,600,650]],
+                 "4": [[0,50,100,150,200,250,300,350,400,450,500,550,600,650,700,750,800,850]],
+               },
+            "case_2":
+               {
+                 "1": [[0,50,100,150,200,250,300,350,400,450,500,550,600,650,700,750,800,850,900]],
+                 "2": [[200,250,300,350,400,450,500]],
+                 "3": [[100,150,250,300,350,400,450,550,600,650,700,750,850,900]],
+                 "4": [[14,50,100,150]],
+               },
+            "case_3": # 1.5 [mm] sphere, instead of 2.5 [mm]
+               {
+                 "1": [[9,100,174,253,350,417,500,616,651,750,800,850,900]],
+                 "2": [[25,100,168,225,250,300,350,400,450,500,550,600,650,700,750,800,850,900]],
+                 "3": [[0,50,100,150,200,250,300,350,400,450,500,550,600,650,700,800,871,900]],
+                 "4": [[0,50,100,150,200,250,300,350,400,450,500,550,600,650,700,750,800,850,900]],
+               },
+            "case_4":
+               {
+                 "1": [[0,100,150,200,250,300,350,400,450,500,550,600,650,700]],
+                 "2": [[0,50,100,150,200,250,300,350,400,450,500,550,600,650,716]],
+                 "3": [[0,50,100,150,200,250,300,350,400,450]],
+                 "4": [[0,50,100,150,200,250,300]],
+               },
+            "case_5":
+               {
+                 "1": [[0,100,151,200,271,300,350,400,450,500,550,600,650,700]],
+                 "2": [[50,200,300,374,400,464,500,565,600]],
+                 "3": [[0,100,155,250,317,350,414,450,500,550,600,650,700]],
+                 "4": [[0,50,100,150,200,250,300,350,400,450,500,550,600,650,700]],
+               }
+            }
+    cases: {"case_1":
+               {
+                   "1":
+                    {
+                        "info.yaml": "https://imperialcollegelondon.box.com/shared/static/z14hbun0n9f2t4w9cfd3fg2r0bbrxs5t.yaml",
+                        "gt_rectified_0.yaml": "https://imperialcollegelondon.box.com/shared/static/oxtle6ymikofndiw640sa733bbjjk112.yaml",
+                        "calibration.yaml": "https://imperialcollegelondon.box.com/shared/static/mxktzoh77zdug08n5226aay6bzxdda6m.yaml",
+                        "video.mp4": "https://imperialcollegelondon.box.com/shared/static/exlz4n3nljfkrkvpd8dve9aozde4c8ht.mp4"
+                    },
+                   "2":
+                    {
+                        "info.yaml": "https://imperialcollegelondon.box.com/shared/static/4zrg9q05p92eq16ki7bs8ewzy736rasp.yaml",
+                        "gt_rectified_0.yaml": "https://imperialcollegelondon.box.com/shared/static/1z4kku6dqpsld1sdt9fp98vh0jczuabm.yaml",
+                        "calibration.yaml": "https://imperialcollegelondon.box.com/shared/static/n9stlhs4wqhv535l0l0sdydtzf3x083u.yaml",
+                        "video.mp4": "https://imperialcollegelondon.box.com/shared/static/elr4gr07gw537wdqvvtwevrk313vvn3j.mp4"
+                    },
+                   "3":
+                    {
+                        "info.yaml": "https://imperialcollegelondon.box.com/shared/static/jinrvviubc8ohiup9y6s68aeswkooeea.yaml",
+                        "gt_rectified_0.yaml": "https://imperialcollegelondon.box.com/shared/static/3teb3x6xdgruxj9lv7urf26toyazv9no.yaml",
+                        "calibration.yaml": "https://imperialcollegelondon.box.com/shared/static/z6k7ogsia53rs0cxk7wg25abrpv3102v.yaml",
+                        "video.mp4": "https://imperialcollegelondon.box.com/shared/static/zh1dqiinhnvo5ppzrned619ycmtg0287.mp4"
+                    },
+                   "4":
+                    {
+                        "info.yaml": "https://imperialcollegelondon.box.com/shared/static/lybxenmsh6z55z0u67m8imyvj0tfo18f.yaml",
+                        "gt_rectified_0.yaml": "https://imperialcollegelondon.box.com/shared/static/hjlolg8do96ow21fpzfe2cltppw9wx3k.yaml",
+                        "calibration.yaml": "https://imperialcollegelondon.box.com/shared/static/ghxbk3mviwzohy9d43knyex1qrrv9wt0.yaml",
+                        "video.mp4": "https://imperialcollegelondon.box.com/shared/static/9w1tux0lthpywjztj1fy8hxt2hhhinph.mp4"
+                   }
+               },
+            "case_2":
+               {
+                   "1":
+                    {
+                        "info.yaml": "https://imperialcollegelondon.box.com/shared/static/8ba2jq4ct6vm6q2d7yh1dqwsbgoza2km.yaml",
+                        "gt_rectified_0.yaml": "https://imperialcollegelondon.box.com/shared/static/viwm9lfy3gecrcv5l0863nw0is24orh6.yaml",
+                        "calibration.yaml": "https://imperialcollegelondon.box.com/shared/static/kivnx80mpcwpazgdygipjn10mmuivjd2.yaml",
+                        "video.mp4": "https://imperialcollegelondon.box.com/shared/static/qoplb8ke9mi00lphhqxjob8g84ce7ex6.mp4"
+                    },
+                   "2":
+                    {
+                        "info.yaml": "https://imperialcollegelondon.box.com/shared/static/b4590kfxg1vmuamiancf1sof412s61to.yaml",
+                        "gt_rectified_0.yaml": "https://imperialcollegelondon.box.com/shared/static/k8ny7an6u43u11yufqxptzp98133m5g7.yaml",
+                        "calibration.yaml": "https://imperialcollegelondon.box.com/shared/static/jr2zahlbfthir9hy4gq88c56lp1dfnq8.yaml",
+                        "video.mp4": "https://imperialcollegelondon.box.com/shared/static/4fwo5pkz19x2oekxetf3n9czrm6pdqhw.mp4"
+                    },
+                   "3":
+                    {
+                        "info.yaml": "https://imperialcollegelondon.box.com/shared/static/nkaacjmy85drutqg444ttu03ca2u6day.yaml",
+                        "gt_rectified_0.yaml": "https://imperialcollegelondon.box.com/shared/static/kbr7ydnkl1gmdzk0448r9q0hs6kc9gi3.yaml",
+                        "calibration.yaml": "https://imperialcollegelondon.box.com/shared/static/s6kq41nz2hqop1xu7fx7tk6bp0lf756k.yaml",
+                        "video.mp4": "https://imperialcollegelondon.box.com/shared/static/1h0qj9mbxset5pstd7yiyk8r5lbp0bpv.mp4"
+                    },
+                   "4":
+                    {
+                        "info.yaml": "https://imperialcollegelondon.box.com/shared/static/9h1h388rnndkbruleyow6vpn79xk9axu.yaml",
+                        "gt_rectified_0.yaml": "https://imperialcollegelondon.box.com/shared/static/7vykcmn360livyxcszxoc9tstvtc5xn7.yaml",
+                        "calibration.yaml": "https://imperialcollegelondon.box.com/shared/static/zemkrn3zpbxwuw99rtr59c6hc344h09k.yaml",
+                        "video.mp4": "https://imperialcollegelondon.box.com/shared/static/8weedrgz1fpa1ddx4l6dxz5m9gu3kfbg.mp4"
+                   }
+               },
+            "case_3":
+               {
+                   "1":
+                    {
+                        "info.yaml": "https://imperialcollegelondon.box.com/shared/static/lxfisxcxc0gkheftlkhd8gm2p7ul6sj8.yaml",
+                        "gt_rectified_0.yaml": "https://imperialcollegelondon.box.com/shared/static/ncuh7iy8igo2dd8mub3ryiq6lnlsozmz.yaml",
+                        "calibration.yaml": "https://imperialcollegelondon.box.com/shared/static/a0q9kdow27t5sgp1m3q01y8fy1nodjn3.yaml",
+                        "video.mp4": "https://imperialcollegelondon.box.com/shared/static/4d1xhz19dqyyb5r79hferps241o8g4af.mp4"
+                    },
+                   "2":
+                    {
+                        "info.yaml": "https://imperialcollegelondon.box.com/shared/static/r59uxwdgj6ytu3p93dkujk2u27a1irlw.yaml",
+                        "gt_rectified_0.yaml": "https://imperialcollegelondon.box.com/shared/static/qbzp071jj13jtkqtb1i1fucx234g92g9.yaml",
+                        "calibration.yaml": "https://imperialcollegelondon.box.com/shared/static/fywee3u0c8ki1vyh3viozx3egb3y8zm2.yaml",
+                        "video.mp4": "https://imperialcollegelondon.box.com/shared/static/rd3p7km46ve1rwszg3pvfhskdf7v4g12.mp4"
+                    },
+                   "3":
+                    {
+                        "info.yaml": "https://imperialcollegelondon.box.com/shared/static/kl9t0cy0xhrxc8mgfbfuwa6z1oxugud3.yaml",
+                        "gt_rectified_0.yaml": "https://imperialcollegelondon.box.com/shared/static/ft1ivzufpw452tqm7qzrip3d8d8bl2jj.yaml",
+                        "calibration.yaml": "https://imperialcollegelondon.box.com/shared/static/hhlslzffglvdvar3hrxjmt7en07ggcw5.yaml",
+                        "video.mp4": "https://imperialcollegelondon.box.com/shared/static/6g5m5c1d3yo8jahn70cffo4mp68l793u.mp4"
+                    },
+                   "4":
+                    {
+                        "info.yaml": "https://imperialcollegelondon.box.com/shared/static/a0798hruhcp5x5fh2qcgujbgis8bylps.yaml",
+                        "gt_rectified_0.yaml": "https://imperialcollegelondon.box.com/shared/static/p8h8pxei9azx3guxs7qcyup6sqw0t80v.yaml",
+                        "calibration.yaml": "https://imperialcollegelondon.box.com/shared/static/af7rlwq0t4vc6kne23bkl5raf3iz4agk.yaml",
+                        "video.mp4": "https://imperialcollegelondon.box.com/shared/static/qwccklshsqx2wul4r14wckzp8xtgt8c7.mp4"
+                   }
+               },
+            "case_4":
+               {
+                   "1":
+                    {
+                        "info.yaml": "https://imperialcollegelondon.box.com/shared/static/rzcqzssoz50cz0jsi67l4mff86ve0cmn.yaml",
+                        "gt_rectified_0.yaml": "https://imperialcollegelondon.box.com/shared/static/oyhlm2b7vgr0wc2ygtvuv6sld84lx90w.yaml",
+                        "calibration.yaml": "https://imperialcollegelondon.box.com/shared/static/aaim2i8jidday1xwl77jlrmrv4fwl28x.yaml",
+                        "video.avi": "https://imperialcollegelondon.box.com/shared/static/f667m6kf888kuyrqx1un066jasb4xtph.avi"
+                    },
+                   "2":
+                    {
+                        "info.yaml": "https://imperialcollegelondon.box.com/shared/static/0kfbepytqzx0zv8tg3foisa16pnhi0kw.yaml",
+                        "gt_rectified_0.yaml": "https://imperialcollegelondon.box.com/shared/static/vpfqffiwmrb5yg9clz0yjc99jdekmj12.yaml",
+                        "calibration.yaml": "https://imperialcollegelondon.box.com/shared/static/46v28uodfr88vza4wgrl5toz5t8hvfvr.yaml",
+                        "video.avi": "https://imperialcollegelondon.box.com/shared/static/cyas9detqbqjq1o75pvpei0ck6qkeki6.avi"
+                    },
+                   "3":
+                    {
+                        "info.yaml": "https://imperialcollegelondon.box.com/shared/static/djytfpcitehi97t6d5k1cf6cozal57ir.yaml",
+                        "gt_rectified_0.yaml": "https://imperialcollegelondon.box.com/shared/static/a7svbu44dn26lgi19xjecg7flg8sazjt.yaml",
+                        "calibration.yaml": "https://imperialcollegelondon.box.com/shared/static/4bbuxc6rnis3nvte7fvam7h9yfq8uhr2.yaml",
+                        "video.avi": "https://imperialcollegelondon.box.com/shared/static/bhfthlr25ccx5nnk6azux7rwcm2z7eq3.avi"
+                    },
+                   "4":
+                    {
+                        "info.yaml": "https://imperialcollegelondon.box.com/shared/static/g9q3by6ly2d7ni8l1tr3qe77dieo6lxh.yaml",
+                        "gt_rectified_0.yaml": "https://imperialcollegelondon.box.com/shared/static/qki1u2kep3bone8pr2txgcizbtijcvz3.yaml",
+                        "calibration.yaml": "https://imperialcollegelondon.box.com/shared/static/jbaghx2w83igteyn91f8931a6t83az8c.yaml",
+                        "video.avi": "https://imperialcollegelondon.box.com/shared/static/dksnvqgjon6ebcuxecbssfr4ms7sl1yo.avi"
+                   }
+               },
+            "case_5":
+               {
+                   "1":
+                    {
+                        "info.yaml": "https://imperialcollegelondon.box.com/shared/static/zkn4cbsf3civsiau3kw0543o7ryvfy48.yaml",
+                        "gt_rectified_0.yaml": "https://imperialcollegelondon.box.com/shared/static/atir2103ov8kzo826l51b7d8zd98eqc4.yaml",
+                        "calibration.yaml": "https://imperialcollegelondon.box.com/shared/static/k6agylqdcs8gdr0aunk89lc2737hsl5r.yaml",
+                        "video.avi": "https://imperialcollegelondon.box.com/shared/static/5xk0m95476rpg9nfw3065unehffnghvq.avi"
+                    },
+                   "2":
+                    {
+                        "info.yaml": "https://imperialcollegelondon.box.com/shared/static/5i0p6nw4wtd709oxr7qwd90nqdhevp77.yaml",
+                        "gt_rectified_0.yaml": "https://imperialcollegelondon.box.com/shared/static/23ytrr6nscip1nawoczacq4p6jgu5ucs.yaml",
+                        "calibration.yaml": "https://imperialcollegelondon.box.com/shared/static/sq1k9ylxg686n4x3iocmm5g5tzc9spcq.yaml",
+                        "video.avi": "https://imperialcollegelondon.box.com/shared/static/us6ufejksmg8aro7s560ha6mb7y9g5bk.avi"
+                    },
+                   "3":
+                    {
+                        "info.yaml": "https://imperialcollegelondon.box.com/shared/static/ay4ofg6mxtu8f2uss3sq8y2y3nbqdnhh.yaml",
+                        "gt_rectified_0.yaml": "https://imperialcollegelondon.box.com/shared/static/8m5ts44ixt0z3n2gd1fxov0o2r3pwfot.yaml",
+                        "calibration.yaml": "https://imperialcollegelondon.box.com/shared/static/69usqndrh4rzmwzuzbsd89hr1o1ubs51.yaml",
+                        "video.avi": "https://imperialcollegelondon.box.com/shared/static/84jz1ll8emv0hu9q2krt71gojtbd9an3.avi"
+                    },
+                   "4":
+                    {
+                        "info.yaml": "https://imperialcollegelondon.box.com/shared/static/g65risqbrmfm4s4jmi687ux1id0niahe.yaml",
+                        "gt_rectified_0.yaml": "https://imperialcollegelondon.box.com/shared/static/a4oma5pzttutek1a3xhpbf9wo29bffj0.yaml",
+                        "calibration.yaml": "https://imperialcollegelondon.box.com/shared/static/2iq2g5rpblcfekgyq3q63y80cr4flry0.yaml",
+                        "video.avi": "https://imperialcollegelondon.box.com/shared/static/mckr6jkpk9m78ft072lx6gl4itqq0s80.avi"
+                   }
+               }
            }

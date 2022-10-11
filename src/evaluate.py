@@ -1,11 +1,35 @@
 import os
 import sys
+import datetime
 from src import utils
 from src.sample_tracker import Tracker
 
 import cv2 as cv
 import numpy as np
 import matplotlib.pyplot as plt
+
+
+class Timer:
+    def __init__(self):
+        self.time_init = datetime.datetime.now()
+        self.time_accumulator = self.time_init
+        self.n_runs = 0
+
+    def monitor_time_start(self):
+        self.time_start = datetime.datetime.now()
+        self.n_runs += 1
+
+    def monitor_time_end(self):
+        time_end = datetime.datetime.now()
+        time_delta = time_end - self.time_start
+        self.time_accumulator += time_delta
+
+    def print_time_performance(self):
+        time_delta_total = self.time_accumulator - self.time_init
+        time_average_s = time_delta_total.total_seconds() / self.n_runs
+        time_average_hz = 1. / time_average_s
+        print("\tAverage time performance, per tracking cycle:  {} [s], {} [Hz]".format(time_average_s, time_average_hz))
+
 
 
 class Video:
@@ -284,6 +308,7 @@ class EAO_Rank:
         if not eao_curve:
             # If empty list
             return 0.0
+        #print(eao_curve)
         eao_curve_N = eao_curve[self.N_min:self.N_max]
         # Remove any "is_difficult" score
         eao_curve_N_filt = [value for value in eao_curve_N if value != "ignore"]
@@ -633,7 +658,7 @@ def draw_bb_in_frame(im1, im2, bbox1_gt, bbox1_p, bbox2_gt, bbox2_p, is_difficul
     return im_hstack
 
 
-def assess_anchor(v, anch, ar, kss, is_visualization_off):
+def assess_anchor(time, v, anch, ar, kss, is_visualization_off):
     # Create window for results animation
     if not is_visualization_off:
         # Parameters for visualization only! These parameters do not affect the results!
@@ -681,7 +706,9 @@ def assess_anchor(v, anch, ar, kss, is_visualization_off):
 
         if not is_track_fail_2d or not is_track_fail_3d:
             # Update the tracker
+            time.monitor_time_start()
             bbox1_p, bbox2_p = t.tracker_update(im1, im2)
+            time.monitor_time_end()
             if is_difficult:
                 # If `is_difficult` then the metrics are not be affected
                 pass
@@ -724,7 +751,7 @@ def print_results(str_start, stats):
     print(message)
 
 
-def assess_keypoint(v, kpt_anchors, kss, stats_kpt, config_results, is_visualization_off):
+def assess_keypoint(time, v, kpt_anchors, kss, stats_kpt, config_results, is_visualization_off):
     """
         The keypoints are assessed throughout each video multiple times.
         Each time, the tracker is initialized at a different anchor points.
@@ -734,7 +761,7 @@ def assess_keypoint(v, kpt_anchors, kss, stats_kpt, config_results, is_visualiza
                            config_results["iou_threshold"],
                            config_results["err_3d_threshold"],
                            v.Q)
-        assess_anchor(v, anch, ar, kss, is_visualization_off)
+        assess_anchor(time, v, anch, ar, kss, is_visualization_off)
         stats_anchor = Statistics() # To support multiple keypoints
         ar.get_full_metric(stats_anchor)
         print_results("\t\t\tAnchor {}, ".format(anch_id), stats_anchor)
@@ -745,7 +772,7 @@ def assess_keypoint(v, kpt_anchors, kss, stats_kpt, config_results, is_visualiza
     stats_kpt.merge_stats()
 
 
-def calculate_results_for_video(rank, stats_video, anchors, case_sample_path, is_to_rectify, config_results, is_visualization_off):
+def calculate_results_for_video(time, rank, stats_video, anchors, case_sample_path, is_to_rectify, config_results, is_visualization_off):
     # Load video
     v = Video(case_sample_path, is_to_rectify)
     # Iterate through each keypoint (each keypoint that was labelled throughout a video)
@@ -757,7 +784,7 @@ def calculate_results_for_video(rank, stats_video, anchors, case_sample_path, is
         terminator_frame = v.get_terminator_frame()
         kss = KptSubSequences(terminator_frame, case_sample_path, kpt_id)
         stats_kpt = Statistics() # Save score for a kpt, and all its anchors
-        assess_keypoint(v, kpt_anchors, kss, stats_kpt, config_results, is_visualization_off)
+        assess_keypoint(time, v, kpt_anchors, kss, stats_kpt, config_results, is_visualization_off)
         stats_video.append_stats(stats_kpt)
         rank.add_kpt_ss(kss)
     # Check that we have statistics for each of the keypoints
@@ -772,6 +799,7 @@ def calculate_results(config, valid_or_test, is_visualization_off):
     is_to_rectify = config["is_to_rectify"]
     config_data = config[valid_or_test]
 
+    time = Timer()
     rank = EAO_Rank(config_data["N_min"], config_data["N_max"])
     stats_case_all = Statistics() # For ALL cases
 
@@ -785,7 +813,7 @@ def calculate_results(config, valid_or_test, is_visualization_off):
             # Go through case sample (in other words, each video)
             for cs in case.case_samples:
                 stats_video = Statistics() # Statistics for a video of a case (specifically, for all the keypoints of a video)
-                calculate_results_for_video(rank, stats_video, cs.anchors, cs.case_sample_path, is_to_rectify, config_results, is_visualization_off)
+                calculate_results_for_video(time, rank, stats_video, cs.anchors, cs.case_sample_path, is_to_rectify, config_results, is_visualization_off)
                 print_results("\t\t{}".format(cs.case_sample_path), stats_video)
                 stats_case.append_stats(stats_video)
             # Get results for all the videos in the case
@@ -798,6 +826,7 @@ def calculate_results(config, valid_or_test, is_visualization_off):
         #rank.calculate_N_min_and_N_max() # Used by callenge organizers to get N_min and N_max for each dataset
         eao = rank.calculate_eao_score()
         print_results("\tEAO:{:.3f}".format(eao), stats_case_all)
+        time.print_time_performance()
 
 
 # function called from `main.py`!

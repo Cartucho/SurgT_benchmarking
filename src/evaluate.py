@@ -262,7 +262,10 @@ class EAO_Rank:
         self.all_ss_len_max = max(self.all_ss_len_max, all_kps_ss_len_max)
         # Calculate the mean IoU scores, to create a single ss to used in the final EAO score
         mean_kpt_iou_scores = self.calculate_eao_curve(all_kps_ss, all_kps_ss_len_max)
+        # Uncomment the next line to print the mean IoU of that video
         #print("Case sample: {}, Kpt_id: {}, Mean IoU: {}".format(kss.case_sample_path, kss.kpt_id, mean_kpt_iou_scores))
+        # Uncomment the next line to print all the anchor IoUs of that video
+        #print(kss.kpt_all_ss)
         self.final_ss.append(mean_kpt_iou_scores)
 
 
@@ -325,6 +328,9 @@ class SSeq:
 
     def add_iou_score(self, iou):
         self.ss_iou_scores.append(iou)
+
+    def __repr__(self):
+        return "{}".format(self.ss_iou_scores)
 
 
 class KptSubSequences:

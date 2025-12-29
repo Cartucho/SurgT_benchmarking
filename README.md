@@ -2,7 +2,7 @@
 
 [![GitHub stars](https://img.shields.io/github/stars/Cartucho/SurgT_benchmarking.svg?style=social&label=Stars)](https://github.com/Cartucho/SurgT_benchmarking)
 
-A tool to benchmark tissue trackers in surgery.
+A tool to benchmark tissue trackers in surgery - this repo is no longer actively maintained.
 
 <img src="https://user-images.githubusercontent.com/15831541/152762981-66689b89-bcd8-4a43-8bb4-3e24c1550f63.gif">
 
